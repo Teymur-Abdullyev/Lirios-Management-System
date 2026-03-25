@@ -1,22 +1,22 @@
-# 🌸 Lirios Beauty - Business Management System
+#  Lirios Beauty - Business Management System
 
 Bu layihə, **Lirios Beauty** onlayn mağazasının inventar, satış və müştəri məlumatlarını idarə etmək üçün hazırlanmış **Full-Stack** tətbiqdir.
 
-## 🚀 Layihənin Məqsədi
+##  Layihənin Məqsədi
 Biznes proseslərini avtomatlaşdırmaq, xüsusilə xaricdən (Douglas, Michael Kors və s.) gətirilən məhsulların stok izlənilməsini və mənfəət analizini asanlaşdırmaq.
 
-## 🛠 Texnoloji Stack
+##  Texnoloji Stack
 - **Backend:** Java (IntelliJ IDEA) - Business logic və API idarəetməsi.
 - **Frontend:** HTML, CSS, JavaScript (VS Code) - İstifadəçi interfeysi.
 - **Database:** SQL (Oracle/PostgreSQL) - Məlumatların relasiyalı saxlanması.
 - **Version Control:** Git & GitHub.
 
-## 📂 Qovluq Strukturu
+##  Qovluq Strukturu
 - `/backend`: Java Entity-ləri və Controller-lər.
 - `/frontend`: UI dizaynı və skriptlər.
 - `/database`: `schema.sql` (baza strukturu) və analiz sorğuları.
 
-## 📊 Əsas Funksiyalar
+##  Əsas Funksiyalar
 1. **İnventar İdarəetməsi:** Məhsulların markasına və kateqoriyasına görə filtrasiyası.
 2. **Satış Analitikası:** Hər satışdan gələn xalis mənfəətin avtomatik hesablanması.
 3. **Müştəri İzləmə:** İnstagram üzərindən gələn sifarişlərin mərkəzləşdirilmiş bazası.
