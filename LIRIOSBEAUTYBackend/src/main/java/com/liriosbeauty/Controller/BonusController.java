@@ -12,6 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/bonus")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class BonusController {
 
     private final BonusService bonusService;

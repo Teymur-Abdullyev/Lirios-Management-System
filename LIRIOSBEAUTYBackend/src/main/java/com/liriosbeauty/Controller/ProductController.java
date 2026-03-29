@@ -1,5 +1,6 @@
 package com.liriosbeauty.Controller;
 
+import com.liriosbeauty.DTO.ProductDTO;
 import com.liriosbeauty.Entity.Product;
 import com.liriosbeauty.Service.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,7 @@ public class ProductController {
     private final ProductService productService;
 
     @GetMapping
-    public List<Product> getAll() {
+    public List<ProductDTO> getAll() {
         return productService.getAll();
     }
 

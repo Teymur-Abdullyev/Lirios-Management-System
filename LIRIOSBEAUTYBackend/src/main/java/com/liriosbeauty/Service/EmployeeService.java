@@ -1,11 +1,13 @@
 package com.liriosbeauty.Service;
 
+import com.liriosbeauty.DTO.EmployeeDTO;
 import com.liriosbeauty.Entity.Employee;
 import com.liriosbeauty.Repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -13,12 +15,16 @@ public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
 
-    public List<Employee> getAll() {
-        return employeeRepository.findAll();
+    public List<EmployeeDTO> getAll() {
+        return employeeRepository.findAll().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
-    public List<Employee> getActive() {
-        return employeeRepository.findByActiveTrue();
+    public List<EmployeeDTO> getActive() {
+        return employeeRepository.findByActiveTrue().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
     public Employee save(Employee employee) {
@@ -39,5 +45,16 @@ public class EmployeeService {
                 .orElseThrow(() -> new RuntimeException("İşçi tapılmadı"));
         employee.setActive(false);
         employeeRepository.save(employee);
+    }
+
+    private EmployeeDTO toDTO(Employee e) {
+        EmployeeDTO dto = new EmployeeDTO();
+        dto.setId(e.getId());
+        dto.setFullName(e.getFullName());
+        dto.setPhone(e.getPhone());
+        dto.setBaseSalary(e.getBaseSalary());
+        dto.setActive(e.isActive());
+        dto.setHiredAt(e.getHiredAt());
+        return dto;
     }
 }

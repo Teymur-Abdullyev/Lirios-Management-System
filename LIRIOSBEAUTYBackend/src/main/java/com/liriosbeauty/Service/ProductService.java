@@ -1,4 +1,6 @@
 package com.liriosbeauty.Service;
+
+import com.liriosbeauty.DTO.ProductDTO;
 import com.liriosbeauty.Entity.MovementType;
 import com.liriosbeauty.Entity.Product;
 import com.liriosbeauty.Entity.StockMovement;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -17,9 +20,10 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final StockMovementRepository stockMovementRepository;
 
-    // Stok manual düzəliş
-    public List<Product> getAll() {
-        return productRepository.findAll();
+    public List<ProductDTO> getAll() {
+        return productRepository.findAll().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
     public Optional<Product> findByBarcode(String barcode) {
@@ -32,7 +36,6 @@ public class ProductService {
         }
         return productRepository.save(product);
     }
-
 
     public Product incrementStock(String barcode, int qty) {
         Product product = productRepository.findByBarcode(barcode)
@@ -51,6 +54,28 @@ public class ProductService {
         return product;
     }
 
+    public Product adjustStock(Long id, int change, String reason, String note) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Məhsul tapılmadı"));
+
+        int newStock = product.getStockQty() + change;
+
+        if (newStock < 0) {
+            throw new RuntimeException("Stok mənfi ola bilməz!");
+        }
+
+        product.setStockQty(newStock);
+
+        // StockMovement log
+        StockMovement movement = new StockMovement();
+        movement.setProduct(product);
+        movement.setQuantity(change);
+        movement.setType(MovementType.ADJUSTMENT);
+        stockMovementRepository.save(movement);
+
+        return productRepository.save(product);
+    }
+
     public Product update(Long id, Product updated) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Məhsul tapılmadı"));
@@ -60,23 +85,21 @@ public class ProductService {
         product.setCategory(updated.getCategory());
         return productRepository.save(product);
     }
-    public Product adjustStock(Long id, int qty) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Məhsul tapılmadı"));
-        product.setStockQty(product.getStockQty() + qty);
-        if (product.getStockQty() < 0) product.setStockQty(0);
-
-        StockMovement movement = new StockMovement();
-        movement.setProduct(product);
-        movement.setQuantity(qty);
-        movement.setType(qty > 0 ? MovementType.SCAN_IN : MovementType.ADJUSTMENT);
-        stockMovementRepository.save(movement);
-
-        return productRepository.save(product);
-    }
-
 
     public void delete(Long id) {
         productRepository.deleteById(id);
+    }
+
+    // DTO mapping helper
+    private ProductDTO toDTO(Product p) {
+        ProductDTO dto = new ProductDTO();
+        dto.setId(p.getId());
+        dto.setBarcode(p.getBarcode());
+        dto.setProductName(p.getName());
+        dto.setSellingPrice(p.getPrice());
+        dto.setCostPrice(p.getCostPrice());
+        dto.setStockQuantity(p.getStockQty());
+        dto.setCategory(p.getCategory());
+        return dto;
     }
 }

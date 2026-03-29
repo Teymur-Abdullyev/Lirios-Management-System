@@ -1,6 +1,7 @@
 package com.liriosbeauty.Controller;
 
 
+import com.liriosbeauty.DTO.EmployeeDTO;
 import com.liriosbeauty.Entity.Employee;
 import com.liriosbeauty.Service.EmployeeService;
 import lombok.RequiredArgsConstructor;
@@ -12,17 +13,18 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/employees")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class EmployeeController {
 
     private final EmployeeService employeeService;
 
     @GetMapping
-    public List<Employee> getAll() {
+    public List<EmployeeDTO> getAll() {
         return employeeService.getAll();
     }
 
     @GetMapping("/active")
-    public List<Employee> getActive() {
+    public List<EmployeeDTO> getActive() {
         return employeeService.getActive();
     }
 

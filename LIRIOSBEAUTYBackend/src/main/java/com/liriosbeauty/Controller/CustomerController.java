@@ -1,6 +1,6 @@
-
 package com.liriosbeauty.Controller;
 
+import com.liriosbeauty.DTO.CustomerDTO;
 import com.liriosbeauty.Entity.Customer;
 import com.liriosbeauty.Service.CustomerService;
 import lombok.RequiredArgsConstructor;
@@ -12,12 +12,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/customers")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class CustomerController {
 
     private final CustomerService customerService;
 
     @GetMapping
-    public List<Customer> getAll() {
+    public List<CustomerDTO> getAll() {
         return customerService.getAll();
     }
 

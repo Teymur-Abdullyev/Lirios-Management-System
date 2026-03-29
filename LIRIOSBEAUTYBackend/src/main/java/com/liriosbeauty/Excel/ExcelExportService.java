@@ -33,7 +33,7 @@ public class ExcelExportService {
 
         // Header
         Row header = sheet.createRow(0);
-        String[] cols = {"ID", "Barcode", "Ad", "Qiymət", "Alış qiyməti", "Stok", "Kateqoriya", "Status"};
+        String[] cols = {"ID", "Barcode", "Ad", "Satış qiyməti", "Alış qiyməti", "Stok", "Kateqoriya", "Status"};
         for (int i = 0; i < cols.length; i++) {
             Cell cell = header.createCell(i);
             cell.setCellValue(cols[i]);
@@ -46,12 +46,12 @@ public class ExcelExportService {
         for (Product p : products) {
             Row row = sheet.createRow(rowNum++);
             row.createCell(0).setCellValue(p.getId());
-            row.createCell(1).setCellValue(p.getBarcode());
+            row.createCell(1).setCellValue(p.getBarcode() != null ? p.getBarcode() : "—");
             row.createCell(2).setCellValue(p.getName());
             row.createCell(3).setCellValue(p.getPrice().doubleValue());
             row.createCell(4).setCellValue(p.getCostPrice().doubleValue());
             row.createCell(5).setCellValue(p.getStockQty());
-            row.createCell(6).setCellValue(p.getCategory());
+            row.createCell(6).setCellValue(p.getCategory() != null ? p.getCategory() : "—");
             row.createCell(7).setCellValue(p.getStatus().toString());
         }
 
