@@ -5,7 +5,7 @@ COPY . .
 RUN gradle clean build -x test
 
 # Runtime stage
-FROM eclipse-temurin:17-jre-slim
+FROM amazoncorretto:17-alpine
 WORKDIR /app
 
 # Copy built JAR from builder
