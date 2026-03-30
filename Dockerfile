@@ -1,11 +1,11 @@
 # Build stage
-FROM gradle:7.6-jdk17 as builder
+FROM gradle:7.6-jdk17 AS builder
 WORKDIR /app
 COPY . .
 RUN gradle clean build -x test
 
 # Runtime stage
-FROM openjdk:17-slim
+FROM eclipse-temurin:17-jre-slim
 WORKDIR /app
 
 # Copy built JAR from builder
