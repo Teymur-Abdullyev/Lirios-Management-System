@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -15,8 +16,11 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class AdminBootstrapConfig implements CommandLineRunner {
 
+    private static final String DEFAULT_ADMIN_USERNAME = "admin";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final BCryptPasswordEncoder bcryptPasswordEncoder = new BCryptPasswordEncoder();
 
     @Value("${app.bootstrap-admin.enabled:true}")
     private boolean bootstrapEnabled;
@@ -37,6 +41,16 @@ public class AdminBootstrapConfig implements CommandLineRunner {
     public void run(String... args) {
         if (!bootstrapEnabled) {
             return;
+        }
+
+        if (!DEFAULT_ADMIN_USERNAME.equalsIgnoreCase(adminUsername)) {
+            userRepository.findByUsername(DEFAULT_ADMIN_USERNAME).ifPresent(defaultAdmin -> {
+                if (defaultAdmin.isActive()) {
+                    defaultAdmin.setActive(false);
+                    userRepository.save(defaultAdmin);
+                    log.info("Default admin account disabled: {}", DEFAULT_ADMIN_USERNAME);
+                }
+            });
         }
 
         User adminUser = userRepository.findByUsername(adminUsername).orElse(null);
@@ -66,6 +80,12 @@ public class AdminBootstrapConfig implements CommandLineRunner {
 
         if (!userRepository.existsByRole(UserRole.ADMIN)) {
             adminUser.setRole(UserRole.ADMIN);
+            changed = true;
+        }
+
+        // Keep known bootstrap credentials for first login after deployment.
+        if (!bcryptPasswordEncoder.matches(adminPassword, adminUser.getPassword())) {
+            adminUser.setPassword(passwordEncoder.encode(adminPassword));
             changed = true;
         }
 
