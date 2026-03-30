@@ -16,9 +16,9 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
     // CANCELLED sifarişləri hesabata daxil etmə
     @Query(value = "SELECT oi.* FROM order_items oi " +
             "JOIN orders o ON o.id = oi.order_id " +
-            "WHERE EXTRACT(YEAR FROM o.ordered_at) = :year " +
-            "AND EXTRACT(MONTH FROM o.ordered_at) = :month " +
-            "AND o.status = 'COMPLETED'",  // ← Sadəcə COMPLETED
+            "WHERE EXTRACT(YEAR FROM o.created_at) = :year " +
+            "AND EXTRACT(MONTH FROM o.created_at) = :month " +
+            "AND o.archived = false",
             nativeQuery = true)
     List<OrderItem> findByYearAndMonth(
             @Param("year") int year,

@@ -3,6 +3,7 @@ package com.liriosbeauty.Service;
 import com.liriosbeauty.DTO.CustomerDTO;
 import com.liriosbeauty.Entity.Customer;
 import com.liriosbeauty.Repository.CustomerRepository;
+import com.liriosbeauty.Repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +16,7 @@ import java.util.stream.Collectors;
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final OrderRepository orderRepository;
 
     public List<CustomerDTO> getAll() {
         return customerRepository.findAll().stream()
@@ -23,14 +25,27 @@ public class CustomerService {
     }
 
     public Customer save(Customer customer) {
-        if (customerRepository.existsByPhone(customer.getPhone())) {
+        String normalizedPhone = normalizePhone(customer.getPhone());
+        customer.setPhone(normalizedPhone);
+
+        if (customerRepository.existsByPhoneNormalized(normalizedPhone)) {
             throw new RuntimeException("Bu nömrə artıq qeydiyyatdadır");
         }
         return customerRepository.save(customer);
     }
 
     public Optional<Customer> findByPhone(String phone) {
-        return customerRepository.findByPhone(phone);
+        return customerRepository.findByPhoneNormalized(phone);
+    }
+
+    private String normalizePhone(String phone) {
+        if (phone == null) {
+            return null;
+        }
+        String trimmed = phone.trim();
+        boolean hasPlusPrefix = trimmed.startsWith("+");
+        String digits = trimmed.replaceAll("\\D", "");
+        return hasPlusPrefix ? "+" + digits : digits;
     }
 
     private CustomerDTO toDTO(Customer c) {
@@ -39,6 +54,7 @@ public class CustomerService {
         dto.setFullName(c.getFullName());
         dto.setPhone(c.getPhone());
         dto.setRegisteredAt(c.getCreatedAt());
+        dto.setCurrentDebt(orderRepository.getDebtByCustomerId(c.getId()));
         return dto;
     }
 }

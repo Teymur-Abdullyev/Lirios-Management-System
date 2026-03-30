@@ -1,5 +1,6 @@
 package com.liriosbeauty.Service;
 
+import com.liriosbeauty.DTO.*;
 import com.liriosbeauty.Entity.*;
 import com.liriosbeauty.Exception.InsufficientStockException;
 import com.liriosbeauty.Repository.OrderItemRepository;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -47,13 +49,6 @@ public class OrderService {
         // Ödəniş validation
         if (paidAmount.compareTo(BigDecimal.ZERO) < 0) {
             throw new RuntimeException("Ödənilən məbləğ mənfi ola bilməz!");
-        }
-
-        if (paidAmount.compareTo(total) > 0) {
-            throw new RuntimeException(
-                String.format("Artıq ödəniş! Ümumi: %.2f AZN, Ödənilən: %.2f AZN", 
-                    total, paidAmount)
-            );
         }
 
         order.setPaidAmount(paidAmount);
@@ -92,6 +87,8 @@ public class OrderService {
             }
 
             item.setOrder(saved);
+            item.setProductNameSnapshot(product.getName());
+            item.setLineTotal(item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
             orderItemRepository.save(item);
 
             // Stoku azalt
@@ -168,7 +165,8 @@ public class OrderService {
 
         // Statusu CANCELLED-ə keçir
         order.setStatus(OrderStatus.CANCELLED);
-        order.setPaymentStatus(null);
+        // payment_status null ola bilmədiyi üçün etibarlı dəyər saxlayırıq.
+        order.setPaymentStatus(PaymentStatus.PAID);
 
         // Stoku geri qaytar
         List<OrderItem> items = orderItemRepository.findByOrderId(id);
@@ -199,28 +197,156 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    public void deleteOrderAndRestoreStock(Long id) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Sifariş tapılmadı"));
+
+        List<OrderItem> items = orderItemRepository.findByOrderId(id);
+
+        if (order.getStatus() != OrderStatus.CANCELLED) {
+            for (OrderItem item : items) {
+                Product product = productRepository.findById(item.getProduct().getId()).orElse(null);
+                if (product == null || product.isDeleted()) {
+                    continue;
+                }
+
+                product.setStockQty(product.getStockQty() + item.getQuantity());
+                productRepository.save(product);
+
+                StockMovement movement = new StockMovement();
+                movement.setProduct(product);
+                movement.setQuantity(item.getQuantity());
+                movement.setType(MovementType.ADJUSTMENT);
+                stockMovementRepository.save(movement);
+            }
+        }
+
+        orderItemRepository.deleteAll(items);
+        orderRepository.delete(order);
+        log.info("Sifariş silindi: #{}", id);
+    }
+
     public List<Order> getAll() {
         return orderRepository.findAll();
+    }
+
+    public List<OrderDTO> getAllDto() {
+        return orderRepository.findAll().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
     public Optional<Order> findById(Long id) {
         return orderRepository.findById(id);
     }
 
+    public Optional<OrderDTO> findByIdDto(Long id) {
+        return orderRepository.findById(id).map(this::toDTO);
+    }
+
     public List<Order> getByCustomer(Long customerId) {
-        return orderRepository.findByCustomerIdAndStatusNot(customerId, OrderStatus.CANCELLED);
+        return orderRepository.findByCustomerIdAndArchivedFalse(customerId);
+    }
+
+    public List<OrderDTO> getByCustomerDto(Long customerId) {
+        return orderRepository.findByCustomerIdAndArchivedFalse(customerId).stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<OrderDTO> getByEmployeeDto(Long employeeId) {
+        return orderRepository.findByEmployeeIdAndArchivedFalse(employeeId).stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
     public List<Order> getDebts() {
-        return orderRepository.findByPaymentStatusAndStatusNot(PaymentStatus.DEBT, OrderStatus.CANCELLED);
+        return orderRepository.findByPaymentStatusAndArchivedFalse(PaymentStatus.DEBT);
+    }
+
+    public List<OrderDTO> getDebtsDto() {
+        return orderRepository.findByPaymentStatusAndArchivedFalse(PaymentStatus.DEBT).stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
     public List<Order> getPartials() {
-        return orderRepository.findByPaymentStatusAndStatusNot(PaymentStatus.PARTIAL, OrderStatus.CANCELLED);
+        return orderRepository.findByPaymentStatusAndArchivedFalse(PaymentStatus.PARTIAL);
+    }
+
+    public List<OrderDTO> getPartialsDto() {
+        return orderRepository.findByPaymentStatusAndArchivedFalse(PaymentStatus.PARTIAL).stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
     public BigDecimal getTotalDebt() {
         BigDecimal debt = orderRepository.getTotalDebtExcludingCancelled();
         return debt != null ? debt : BigDecimal.ZERO;
+    }
+
+    public OrderDTO createOrderDto(Order order, List<OrderItem> items, BigDecimal paidAmount) {
+        return toDTO(createOrder(order, items, paidAmount));
+    }
+
+    public OrderDTO payDebtDto(Long id, BigDecimal amount) {
+        return toDTO(payDebt(id, amount));
+    }
+
+    public OrderDTO cancelOrderDto(Long id) {
+        return toDTO(cancelOrder(id));
+    }
+
+    private OrderDTO toDTO(Order order) {
+        OrderDTO dto = new OrderDTO();
+        dto.setId(order.getId());
+        dto.setCustomer(toCustomerDTO(order.getCustomer()));
+        dto.setEmployee(toEmployeeDTO(order.getEmployee()));
+        dto.setTotalAmount(order.getTotalAmount());
+        dto.setPaidAmount(order.getPaidAmount());
+        dto.setStatus(order.getStatus());
+        dto.setPaymentStatus(order.getPaymentStatus());
+        dto.setOrderedAt(order.getOrderedAt());
+        dto.setItems(orderItemRepository.findByOrderId(order.getId()).stream()
+                .map(this::toOrderItemDTO)
+                .collect(Collectors.toList()));
+        return dto;
+    }
+
+    private CustomerDTO toCustomerDTO(Customer customer) {
+        if (customer == null) {
+            return null;
+        }
+        CustomerDTO dto = new CustomerDTO();
+        dto.setId(customer.getId());
+        dto.setFullName(customer.getFullName());
+        dto.setPhone(customer.getPhone());
+        dto.setRegisteredAt(customer.getCreatedAt());
+        return dto;
+    }
+
+    private EmployeeDTO toEmployeeDTO(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        EmployeeDTO dto = new EmployeeDTO();
+        dto.setId(employee.getId());
+        dto.setFullName(employee.getFullName());
+        dto.setPhone(employee.getPhone());
+        dto.setBaseSalary(employee.getBaseSalary());
+        dto.setActive(employee.isActive());
+        dto.setHiredAt(employee.getHiredAt());
+        return dto;
+    }
+
+    private OrderItemDTO toOrderItemDTO(OrderItem item) {
+        OrderItemDTO dto = new OrderItemDTO();
+        dto.setId(item.getId());
+        dto.setProductId(item.getProduct().getId());
+        dto.setProductName(item.getProduct().getName());
+        dto.setQuantity(item.getQuantity());
+        dto.setUnitPrice(item.getUnitPrice());
+        return dto;
     }
 }

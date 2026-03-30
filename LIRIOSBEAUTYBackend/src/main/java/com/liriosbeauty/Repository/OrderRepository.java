@@ -1,7 +1,6 @@
 package com.liriosbeauty.Repository;
 
 import com.liriosbeauty.Entity.Order;
-import com.liriosbeauty.Entity.OrderStatus;
 import com.liriosbeauty.Entity.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -15,23 +14,27 @@ import java.util.List;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    // CANCELLED sifarişləri hesaba almasın
-    List<Order> findByCustomerIdAndStatusNot(Long customerId, OrderStatus status);
+    // Arxivlənmiş (cancelled) sifarişləri hesaba almasın
+    List<Order> findByCustomerIdAndArchivedFalse(Long customerId);
 
-    List<Order> findByEmployeeIdAndStatusNot(Long employeeId, OrderStatus status);
+    List<Order> findByEmployeeIdAndArchivedFalse(Long employeeId);
 
-    List<Order> findByPaymentStatusAndStatusNot(PaymentStatus paymentStatus, OrderStatus status);
+    List<Order> findByPaymentStatusAndArchivedFalse(PaymentStatus paymentStatus);
 
     // Ümumi borc (CANCELLED xaric)
     @Query("SELECT COALESCE(SUM(o.totalAmount - o.paidAmount), 0) FROM Order o " +
-            "WHERE o.paymentStatus != 'PAID' AND o.status != 'CANCELLED'")
+            "WHERE o.paymentStatus != 'PAID' AND o.archived = false")
     BigDecimal getTotalDebtExcludingCancelled();
+
+        @Query("SELECT COALESCE(SUM(o.totalAmount - o.paidAmount), 0) FROM Order o " +
+            "WHERE o.customer.id = :customerId AND o.paymentStatus != 'PAID' AND o.archived = false")
+        BigDecimal getDebtByCustomerId(@Param("customerId") Long customerId);
 
     // İşçi satışları (CANCELLED xaric)
     @Query("SELECT SUM(o.totalAmount) FROM Order o " +
             "WHERE o.employee.id = :employeeId " +
             "AND o.orderedAt BETWEEN :start AND :end " +
-            "AND o.status = 'COMPLETED'")
+            "AND o.archived = false")
     BigDecimal sumByEmployeeAndPeriod(
             @Param("employeeId") Long employeeId,
             @Param("start") LocalDateTime start,
@@ -41,12 +44,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Köhnə metodlar (geriyə uyğunluq üçün)
     @Deprecated
     default List<Order> findByCustomerId(Long customerId) {
-        return findByCustomerIdAndStatusNot(customerId, OrderStatus.CANCELLED);
+        return findByCustomerIdAndArchivedFalse(customerId);
     }
 
     @Deprecated
     default List<Order> findByPaymentStatus(PaymentStatus paymentStatus) {
-        return findByPaymentStatusAndStatusNot(paymentStatus, OrderStatus.CANCELLED);
+        return findByPaymentStatusAndArchivedFalse(paymentStatus);
     }
 
     @Deprecated

@@ -1,14 +1,77 @@
 // ═══════════════════════════════════════════════════════════
 // LIRIOS BEAUTY CRM - FULL PRODUCTION VERSION v2
-// Backend: http://localhost:8080
+// API base URL: configurable via window.__APP_CONFIG__.apiBaseUrl
 // ═══════════════════════════════════════════════════════════
 
-const API = 'http://localhost:8080';
+const API =
+  window.__APP_CONFIG__?.apiBaseUrl ||
+  (["localhost:5500", "127.0.0.1:5500"].includes(window.location.host)
+    ? "http://localhost:8080"
+    : "");
+const ACCESS_TOKEN_KEY = "auth_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
+
+const nativeFetch = window.fetch.bind(window);
+window.fetch = async (input, init = {}) => {
+  const url = typeof input === "string" ? input : input?.url || "";
+  const headers = new Headers(init.headers || {});
+
+  const isApiRequest =
+    url.startsWith(`${API}/api/`) ||
+    url.startsWith("/api/") ||
+    url.includes("/api/");
+  const isPublicAuth =
+    url.includes("/api/auth/login") || url.includes("/api/auth/refresh");
+
+  if (isApiRequest && !isPublicAuth) {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+  }
+
+  const response = await nativeFetch(input, { ...init, headers });
+
+  if (
+    isApiRequest &&
+    !isPublicAuth &&
+    (response.status === 401 || response.status === 403)
+  ) {
+    handleAuthFailure();
+  }
+
+  return response;
+};
+
+async function readApiError(res, fallback = "Xəta baş verdi") {
+  try {
+    const text = await res.text();
+    if (!text) return fallback;
+    try {
+      const parsed = JSON.parse(text);
+      return parsed.message || parsed.error || fallback;
+    } catch (_) {
+      return text;
+    }
+  } catch (_) {
+    return fallback;
+  }
+}
+
+async function fetchJson(url, options = {}, fallback = "Sorğu uğursuz oldu") {
+  const res = await fetch(url, options);
+  if (!res.ok) {
+    throw new Error(await readApiError(res, fallback));
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
 
 // Global State
 let cart = [];
 let products = [];
 let employees = [];
+let customers = [];
 let currentCustomer = null;
 let currentUser = null;
 let html5QrcodeScanner = null;
@@ -23,79 +86,237 @@ let eurRate = 1.85;
 // AUTHENTICATION
 // ═══════════════════════════════════════════════════════════
 
-document.addEventListener('DOMContentLoaded', () => {
-    checkAuth();
+document.addEventListener("DOMContentLoaded", () => {
+  checkAuth();
 });
 
 function checkAuth() {
-    const user = localStorage.getItem('user_info');
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+  const user = localStorage.getItem("user_info");
 
-    if (!user) {
-        showLoginPage();
-    } else {
-        currentUser = JSON.parse(user);
-        initApp();
-    }
+  if (!token || !user) {
+    showLoginPage();
+  } else {
+    currentUser = JSON.parse(user);
+    initApp();
+  }
 }
 
 function showLoginPage() {
-    document.body.innerHTML = `
-        <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)">
-            <div style="background:white;padding:48px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);width:100%;max-width:400px">
-                <div style="text-align:center;margin-bottom:32px">
-                    <div style="width:60px;height:60px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;color:white;font-size:32px;font-weight:700;margin-bottom:16px">L</div>
-                    <h2 style="font-size:28px;font-weight:700;margin:0 0 4px">Lirios Beauty</h2>
-                    <p style="color:#64748b;margin:0">CRM Panel</p>
-                </div>
-                <form onsubmit="handleLogin(event)" style="display:flex;flex-direction:column;gap:16px">
-                    <input type="text" id="login-username" placeholder="İstifadəçi adı" style="padding:12px 16px;border:2px solid #e2e8f0;border-radius:8px;font-size:15px" required>
-                    <input type="password" id="login-password" placeholder="Şifrə" style="padding:12px 16px;border:2px solid #e2e8f0;border-radius:8px;font-size:15px" required>
-                    <button type="submit" style="background:#2563eb;color:white;border:none;padding:14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:16px">Daxil ol</button>
-                </form>
-                <div id="login-error" style="color:#ef4444;text-align:center;margin-top:16px;font-size:14px"></div>
+  document.body.style.display = "block";
+  document.body.style.margin = "0";
+  document.body.style.overflow = "hidden";
+  document.body.style.background = "#0f172a";
+
+  document.body.innerHTML = `
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap');
+
+          html,
+          body {
+            width: 100%;
+            height: 100%;
+          }
+
+          .auth-shell {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background:
+              radial-gradient(circle at 15% 20%, #ffd5b4 0%, transparent 32%),
+              radial-gradient(circle at 85% 10%, #b9f2df 0%, transparent 28%),
+              linear-gradient(160deg, #0f172a 0%, #1f2f4c 48%, #2e4d7d 100%);
+            font-family: 'Manrope', sans-serif;
+          }
+
+          .auth-card {
+            width: 100%;
+            max-width: 430px;
+            border-radius: 28px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid rgba(255, 255, 255, 0.45);
+            box-shadow: 0 25px 70px rgba(15, 23, 42, 0.35);
+            backdrop-filter: blur(10px);
+          }
+
+          .auth-brand {
+            text-align: center;
+            margin-bottom: 22px;
+          }
+
+          .auth-logo {
+            width: 68px;
+            height: 68px;
+            margin: 0 auto 12px;
+            border-radius: 18px;
+            background: linear-gradient(145deg, #2d6cdf 0%, #1c3d8b 100%);
+            color: #fff;
+            display: grid;
+            place-items: center;
+            font-size: 32px;
+            font-weight: 800;
+          }
+
+          .auth-title {
+            margin: 0;
+            font-size: 34px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.02em;
+          }
+
+          .auth-subtitle {
+            margin: 6px 0 0;
+            color: #50607f;
+            font-weight: 600;
+          }
+
+          .auth-form {
+            display: grid;
+            gap: 14px;
+          }
+
+          .auth-input {
+            border: 1px solid #d7e2f7;
+            border-radius: 12px;
+            padding: 13px 14px;
+            font-size: 15px;
+            background: #f8fbff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+          }
+
+          .auth-input:focus {
+            outline: none;
+            border-color: #2d6cdf;
+            box-shadow: 0 0 0 3px rgba(45, 108, 223, 0.18);
+          }
+
+          .auth-button {
+            margin-top: 6px;
+            border: none;
+            border-radius: 12px;
+            padding: 13px;
+            font-size: 17px;
+            font-weight: 800;
+            color: #fff;
+            cursor: pointer;
+            background: linear-gradient(135deg, #2d6cdf 0%, #1e4fb3 100%);
+            box-shadow: 0 14px 28px rgba(30, 79, 179, 0.32);
+            transition: transform 0.2s, box-shadow 0.2s;
+          }
+
+          .auth-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 18px 34px rgba(30, 79, 179, 0.36);
+          }
+
+          .auth-error {
+            margin-top: 14px;
+            min-height: 20px;
+            color: #dc2626;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+          }
+
+          @media (max-width: 480px) {
+            .auth-shell {
+              padding: 14px;
+            }
+            .auth-card {
+              padding: 24px 18px;
+              border-radius: 22px;
+            }
+            .auth-title {
+              font-size: 30px;
+            }
+          }
+        </style>
+
+        <div class="auth-shell">
+          <div class="auth-card">
+            <div class="auth-brand">
+              <div class="auth-logo">L</div>
+              <h2 class="auth-title">Lirios Beauty</h2>
+              <p class="auth-subtitle">CRM Panel</p>
             </div>
+
+            <form onsubmit="handleLogin(event)" class="auth-form">
+              <input type="text" id="login-username" class="auth-input" placeholder="İstifadəçi adı" required>
+              <input type="password" id="login-password" class="auth-input" placeholder="Şifrə" required>
+              <button type="submit" class="auth-button">Daxil ol</button>
+            </form>
+
+            <div id="login-error" class="auth-error"></div>
+          </div>
         </div>
     `;
 }
 
 async function handleLogin(e) {
-    e.preventDefault();
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
+  e.preventDefault();
+  const username = document.getElementById("login-username").value;
+  const password = document.getElementById("login-password").value;
 
-    // Mock login
-    if (username && password) {
-        const mockUser = {
-            id: 1,
-            fullName: username,
-            role: 'ADMIN'
-        };
+  try {
+    const res = await fetch(`${API}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
 
-        localStorage.setItem('user_info', JSON.stringify(mockUser));
-        currentUser = mockUser;
-        location.reload();
-    } else {
-        document.getElementById('login-error').textContent = 'Giriş uğursuz oldu!';
+    if (!res.ok) {
+      throw new Error(await readApiError(res, "Giriş uğursuz oldu"));
     }
+
+    const data = await res.json();
+    localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken || "");
+    localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken || "");
+    localStorage.setItem("user_info", JSON.stringify(data.user || {}));
+    currentUser = data.user || null;
+    location.reload();
+  } catch (err) {
+    document.getElementById("login-error").textContent =
+      err.message || "Giriş uğursuz oldu!";
+  }
 }
 
 function logout() {
-    localStorage.removeItem('user_info');
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem("user_info");
+  location.reload();
+}
+
+function handleAuthFailure() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem("user_info");
+  if (!document.getElementById("login-username")) {
     location.reload();
+  }
 }
 
 function initApp() {
-    initNav();
-    loadCurrency();
-    loadDashboard();
-    displayUserInfo();
+  document.body.style.display = "";
+  document.body.style.margin = "";
+  document.body.style.overflow = "";
+  document.body.style.background = "";
+
+  initNav();
+  loadCurrency();
+  loadDashboard();
+  displayUserInfo();
 }
 
 function displayUserInfo() {
-    const sidebar = document.querySelector('.sidebar-footer');
-    if (sidebar && currentUser) {
-        const currencyHTML = sidebar.innerHTML;
-        sidebar.innerHTML = `
+  const sidebar = document.querySelector(".sidebar-footer");
+  if (sidebar && currentUser) {
+    const currencyHTML = sidebar.innerHTML;
+    sidebar.innerHTML = `
             <div style="padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.1);margin-bottom:12px">
                 <div style="display:flex;align-items:center;gap:12px;padding:0 8px">
                     <div style="width:40px;height:40px;background:#2563eb;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:16px">${currentUser.fullName.charAt(0)}</div>
@@ -112,7 +333,7 @@ function displayUserInfo() {
             </div>
             ${currencyHTML}
         `;
-    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -120,29 +341,40 @@ function displayUserInfo() {
 // ═══════════════════════════════════════════════════════════
 
 function initNav() {
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-            e.preventDefault();
-            const page = item.dataset.page;
+  document.querySelectorAll(".nav-item").forEach((item) => {
+    item.addEventListener("click", (e) => {
+      const externalHref = item.getAttribute("href");
+      if (item.classList.contains("nav-external") && externalHref) {
+        return;
+      }
 
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            item.classList.add('active');
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.getElementById(page).classList.add('active');
+      e.preventDefault();
+      const page = item.dataset.page;
 
-            const loaders = {
-                'dashboard': loadDashboard,
-                'pos': loadPOS,
-                'products': loadProducts,
-                'orders': loadOrders,
-                'customers': loadCustomers,
-                'employees': loadEmployees,
-                'debts': loadDebts
-            };
+      if (!page) return;
 
-            if (loaders[page]) loaders[page]();
-        });
+      document
+        .querySelectorAll(".nav-item")
+        .forEach((n) => n.classList.remove("active"));
+      item.classList.add("active");
+      document
+        .querySelectorAll(".page")
+        .forEach((p) => p.classList.remove("active"));
+      document.getElementById(page).classList.add("active");
+
+      const loaders = {
+        dashboard: loadDashboard,
+        pos: loadPOS,
+        products: loadProducts,
+        orders: loadOrders,
+        customers: loadCustomers,
+        employees: loadEmployees,
+        debts: loadDebts,
+      };
+
+      if (loaders[page]) loaders[page]();
     });
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -150,14 +382,14 @@ function initNav() {
 // ═══════════════════════════════════════════════════════════
 
 async function loadCurrency() {
-    try {
-        const res = await fetch('https://api.exchangerate-api.com/v4/latest/AZN');
-        const data = await res.json();
-        usdRate = (1 / data.rates.USD).toFixed(2);
-        eurRate = (1 / data.rates.EUR).toFixed(2);
-        document.getElementById('usd-rate').textContent = usdRate;
-        document.getElementById('eur-rate').textContent = eurRate;
-    } catch(e) {}
+  try {
+    const res = await fetch("https://api.exchangerate-api.com/v4/latest/AZN");
+    const data = await res.json();
+    usdRate = (1 / data.rates.USD).toFixed(2);
+    eurRate = (1 / data.rates.EUR).toFixed(2);
+    document.getElementById("usd-rate").textContent = usdRate;
+    document.getElementById("eur-rate").textContent = eurRate;
+  } catch (e) {}
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -165,61 +397,74 @@ async function loadCurrency() {
 // ═══════════════════════════════════════════════════════════
 
 async function loadDashboard() {
-    try {
-        const year = new Date().getFullYear();
+  try {
+    const [products, orders, totalDebt, summary] = await Promise.all([
+      fetchJson(`${API}/api/products`, {}, "Məhsullar yüklənmədi"),
+      fetchJson(`${API}/api/orders`, {}, "Sifarişlər yüklənmədi"),
+      fetchJson(`${API}/api/orders/total-debt`, {}, "Borc məlumatı yüklənmədi"),
+      fetchJson(
+        `${API}/api/export/summary`,
+        {},
+        "Hesabat məlumatı yüklənmədi",
+      ).catch(() => null),
+    ]);
 
-        const [products, orders, totalDebt] = await Promise.all([
-            fetch(`${API}/api/products`).then(r => r.json()),
-            fetch(`${API}/api/orders`).then(r => r.json()),
-            fetch(`${API}/api/orders/total-debt`).then(r => r.json())
-        ]);
+    const activeOrders = orders.filter((o) => o.status !== "CANCELLED");
 
-        const yearlyRevenue = orders
-            .filter(o => new Date(o.orderedAt).getFullYear() === year)
-            .reduce((sum, o) => sum + parseFloat(o.totalAmount || 0), 0);
+    const turnover =
+      summary?.totalRevenue != null
+        ? parseFloat(summary.totalRevenue)
+        : activeOrders.reduce(
+            (sum, o) => sum + parseFloat(o.totalAmount || 0),
+            0,
+          );
+    const expenses =
+      summary?.totalExpenses != null ? parseFloat(summary.totalExpenses) : 0;
+    const netProfit = turnover - expenses;
+    const debtValue =
+      summary?.totalDebt != null
+        ? parseFloat(summary.totalDebt)
+        : parseFloat(totalDebt || 0);
 
-        const yearlyProfit = orders
-            .filter(o => new Date(o.orderedAt).getFullYear() === year)
-            .reduce((sum, o) => {
-                const items = o.items || [];
-                const cost = items.reduce((s, i) => {
-                    const product = products.find(p => p.id === i.productId);
-                    return s + ((product?.costPrice || 0) * i.quantity);
-                }, 0);
-                return sum + (parseFloat(o.totalAmount) - cost);
-            }, 0);
+    document.getElementById("total-turnover").textContent =
+      `${formatNumber(turnover)} ₼`;
+    document.getElementById("net-profit").textContent =
+      `${formatNumber(netProfit)} ₼`;
+    document.getElementById("total-expenses").textContent =
+      `${formatNumber(expenses)} ₼`;
+    document.getElementById("total-debts").textContent =
+      `${formatNumber(debtValue)} ₼`;
+    document.getElementById("total-products").textContent = products.length;
+    document.getElementById("total-orders").textContent = activeOrders.length;
 
-        const totalProducts = products.length;
-        const yearlyOrders = orders.filter(o => new Date(o.orderedAt).getFullYear() === year).length;
-
-        document.getElementById('daily-sales').textContent = `${formatNumber(yearlyRevenue)} ₼`;
-        document.getElementById('total-products').textContent = formatNumber(yearlyProfit) + ' ₼';
-        document.getElementById('total-customers').textContent = totalProducts;
-        document.getElementById('active-employees').textContent = yearlyOrders;
-
-        renderRecentOrders(orders.slice(0, 10));
-    } catch(e) {
-        console.error('Dashboard error:', e);
-        showToast('Dashboard yüklənmədi: ' + e.message, 'error');
-    }
+    renderRecentOrders(activeOrders.slice(0, 10));
+  } catch (e) {
+    console.error("Dashboard error:", e);
+    showToast("Dashboard yüklənmədi: " + e.message, "error");
+  }
 }
 
 function renderRecentOrders(orders) {
-    const tbody = document.getElementById('recent-orders');
-    if (!orders || !orders.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:#94a3b8;">Məlumat yoxdur</td></tr>';
-        return;
-    }
+  const tbody = document.getElementById("recent-orders");
+  if (!orders || !orders.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="5" style="text-align:center;padding:32px;color:#94a3b8;">Məlumat yoxdur</td></tr>';
+    return;
+  }
 
-    tbody.innerHTML = orders.map(o => `
+  tbody.innerHTML = orders
+    .map(
+      (o) => `
         <tr>
             <td>#${o.id}</td>
-            <td>${o.customer?.fullName || 'Anonim'}</td>
+            <td>${o.customer?.fullName || "Anonim"}</td>
             <td><strong>${o.totalAmount} ₼</strong></td>
             <td><span class="badge badge-${getStatusClass(o.paymentStatus)}">${getStatusText(o.paymentStatus)}</span></td>
             <td>${formatDate(o.orderedAt)}</td>
         </tr>
-    `).join('');
+    `,
+    )
+    .join("");
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -227,113 +472,214 @@ function renderRecentOrders(orders) {
 // ═══════════════════════════════════════════════════════════
 
 async function loadPOS() {
-    try {
-        const [productsRes, employeesRes] = await Promise.all([
-            fetch(`${API}/api/products`),
-            fetch(`${API}/api/employees/active`)
-        ]);
+  try {
+    const [productsData, employeesData, customersData] = await Promise.all([
+      fetchJson(`${API}/api/products`, {}, "Məhsullar yüklənmədi"),
+      fetchJson(`${API}/api/employees/active`, {}, "İşçilər yüklənmədi"),
+      fetchJson(`${API}/api/customers`, {}, "Müştərilər yüklənmədi"),
+    ]);
 
-        products = await productsRes.json();
-        employees = await employeesRes.json();
+    products = productsData;
+    employees = employeesData;
+    customers = customersData || [];
 
-        renderProducts();
-        renderCart();
-        renderEmployeeDropdown();
+    renderProducts();
+    renderCart();
+    renderEmployeeDropdown();
+    renderCustomerSelect(customers);
+    bindPosPaymentEvents();
 
-        // Search listener
-        const searchInput = document.getElementById('product-search');
-        if (searchInput) {
-            searchInput.replaceWith(searchInput.cloneNode(true));
-            document.getElementById('product-search').addEventListener('input', (e) => {
-                const query = e.target.value.toLowerCase();
-                const filtered = products.filter(p =>
-                    p.productName.toLowerCase().includes(query) ||
-                    (p.barcode && p.barcode.includes(query))
-                );
-                renderProducts(filtered);
-            });
-        }
-
-        // Phone listener
-        const phoneInput = document.getElementById('customer-phone');
-        if (phoneInput) {
-            phoneInput.replaceWith(phoneInput.cloneNode(true));
-            document.getElementById('customer-phone').addEventListener('blur', searchCustomer);
-        }
-
-        // Paid amount listener
-        const paidInput = document.getElementById('paid-amount');
-        if (paidInput) {
-            paidInput.replaceWith(paidInput.cloneNode(true));
-            document.getElementById('paid-amount').addEventListener('input', calculateDebt);
-        }
-
-    } catch(e) {
-        console.error('POS error:', e);
-        showToast('Məhsullar yüklənmədi: ' + e.message, 'error');
+    // Search listener
+    const searchInput = document.getElementById("product-search");
+    if (searchInput) {
+      searchInput.replaceWith(searchInput.cloneNode(true));
+      document
+        .getElementById("product-search")
+        .addEventListener("input", (e) => {
+          const query = e.target.value.toLowerCase();
+          const filtered = products.filter(
+            (p) =>
+              p.productName.toLowerCase().includes(query) ||
+              (p.barcode && p.barcode.includes(query)),
+          );
+          renderProducts(filtered);
+        });
     }
+
+    // Paid amount listener
+    const paidInput = document.getElementById("paid-amount");
+    if (paidInput) {
+      paidInput.replaceWith(paidInput.cloneNode(true));
+      document
+        .getElementById("paid-amount")
+        .addEventListener("input", calculateDebt);
+    }
+  } catch (e) {
+    console.error("POS error:", e);
+    showToast("Məhsullar yüklənmədi: " + e.message, "error");
+  }
+}
+
+function bindPosPaymentEvents() {
+  const methodSelect = document.getElementById("payment-method");
+  if (methodSelect) {
+    methodSelect.replaceWith(methodSelect.cloneNode(true));
+    document
+      .getElementById("payment-method")
+      .addEventListener("change", onPaymentMethodChange);
+  }
+
+  const searchInput = document.getElementById("customer-search-input");
+  if (searchInput) {
+    searchInput.replaceWith(searchInput.cloneNode(true));
+    document
+      .getElementById("customer-search-input")
+      .addEventListener("input", filterDebtCustomers);
+  }
+
+  const customerSelect = document.getElementById("customer-select");
+  if (customerSelect) {
+    customerSelect.replaceWith(customerSelect.cloneNode(true));
+    document
+      .getElementById("customer-select")
+      .addEventListener("change", onDebtCustomerSelect);
+  }
+
+  onPaymentMethodChange();
+}
+
+function onPaymentMethodChange() {
+  const method = document.getElementById("payment-method")?.value || "CASH";
+  const debtSection = document.getElementById("debt-customer-section");
+  const paidInput = document.getElementById("paid-amount");
+  if (!debtSection || !paidInput) return;
+
+  if (method === "DEBT") {
+    debtSection.style.display = "block";
+  } else {
+    debtSection.style.display = "none";
+    currentCustomer = null;
+    const info = document.getElementById("customer-info");
+    if (info) info.innerHTML = "";
+  }
+}
+
+function renderCustomerSelect(list) {
+  const select = document.getElementById("customer-select");
+  if (!select) return;
+  if (!list || !list.length) {
+    select.innerHTML = "<option value=''>Müştəri yoxdur</option>";
+    return;
+  }
+  select.innerHTML = list
+    .map(
+      (c) =>
+        `<option value="${c.id}">${c.fullName} - ${c.phone || "—"}</option>`,
+    )
+    .join("");
+}
+
+function filterDebtCustomers() {
+  const query = (
+    document.getElementById("customer-search-input")?.value || ""
+  ).toLowerCase();
+
+  const filtered = customers.filter(
+    (c) =>
+      (c.fullName || "").toLowerCase().includes(query) ||
+      (c.phone || "").toLowerCase().includes(query),
+  );
+  renderCustomerSelect(filtered);
+}
+
+function onDebtCustomerSelect() {
+  const selectedId = document.getElementById("customer-select")?.value;
+  const info = document.getElementById("customer-info");
+  if (!selectedId) {
+    currentCustomer = null;
+    if (info) info.innerHTML = "";
+    return;
+  }
+
+  currentCustomer =
+    customers.find((c) => String(c.id) === String(selectedId)) || null;
+  if (!currentCustomer || !info) return;
+
+  const debt = parseFloat(currentCustomer.currentDebt || 0);
+  info.innerHTML = `Müştəri: <strong>${currentCustomer.fullName}</strong><br/>Mövcud borc: <strong>${formatNumber(debt)} ₼</strong>`;
+  info.style.color = debt > 0 ? "#ef4444" : "#2563eb";
 }
 
 function renderEmployeeDropdown() {
-    const select = document.getElementById('sale-employee');
-    if (!select) return;
+  const select = document.getElementById("sale-employee");
+  if (!select) return;
 
-    select.innerHTML = '<option value="">İşçi seç...</option>' +
-        employees.map(e => `<option value="${e.id}">${e.fullName}</option>`).join('');
+  select.innerHTML =
+    '<option value="">İşçi seç...</option>' +
+    employees
+      .map((e) => `<option value="${e.id}">${e.fullName}</option>`)
+      .join("");
 }
 
 function renderProducts(list = products) {
-    const container = document.getElementById('products-list');
-    const availableProducts = list.filter(p => p.stockQuantity > 0);
+  const container = document.getElementById("products-list");
+  const availableProducts = list.filter((p) => p.stockQuantity > 0);
 
-    if (!availableProducts || !availableProducts.length) {
-        container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:#94a3b8;">Stokda məhsul yoxdur</div>';
-        return;
-    }
+  if (!availableProducts || !availableProducts.length) {
+    container.innerHTML =
+      '<div style="grid-column:1/-1;text-align:center;padding:60px;color:#94a3b8;">Stokda məhsul yoxdur</div>';
+    return;
+  }
 
-    container.innerHTML = availableProducts.map(p => `
+  container.innerHTML = availableProducts
+    .map(
+      (p) => `
         <div class="product-card" onclick="addToCart(${p.id})">
             <div class="name">${p.productName}</div>
             <div class="price">${p.sellingPrice} ₼</div>
             <div class="stock">Stok: ${p.stockQuantity}</div>
         </div>
-    `).join('');
+    `,
+    )
+    .join("");
 }
 
 function addToCart(id) {
-    const product = products.find(p => p.id === id);
-    if (!product) return;
+  const product = products.find((p) => p.id === id);
+  if (!product) return;
 
-    const existing = cart.find(c => c.id === id);
-    if (existing) {
-        if (existing.qty < product.stockQuantity) {
-            existing.qty++;
-        } else {
-            showToast('Stokda kifayət qədər məhsul yoxdur!', 'warning');
-            return;
-        }
+  const existing = cart.find((c) => c.id === id);
+  if (existing) {
+    if (existing.qty < product.stockQuantity) {
+      existing.qty++;
     } else {
-        cart.push({
-            id: product.id,
-            name: product.productName,
-            price: product.sellingPrice,
-            qty: 1,
-            maxStock: product.stockQuantity
-        });
+      showToast("Stokda kifayət qədər məhsul yoxdur!", "warning");
+      return;
     }
-    renderCart();
-    showToast(`${product.productName} əlavə edildi`);
+  } else {
+    cart.push({
+      id: product.id,
+      name: product.productName,
+      price: product.sellingPrice,
+      qty: 1,
+      maxStock: product.stockQuantity,
+    });
+  }
+  renderCart();
+  showToast(`${product.productName} əlavə edildi`);
 }
 
 function renderCart() {
-    const container = document.getElementById('cart-items');
-    if (!cart.length) {
-        container.innerHTML = '<div class="empty-cart">Səbət boşdur</div>';
-        document.getElementById('cart-total').textContent = '0.00 ₼';
-        return;
-    }
+  const container = document.getElementById("cart-items");
+  if (!cart.length) {
+    container.innerHTML = '<div class="empty-cart">Səbət boşdur</div>';
+    document.getElementById("cart-total").textContent = "0.00 ₼";
+    return;
+  }
 
-    container.innerHTML = cart.map(item => `
+  container.innerHTML = cart
+    .map(
+      (item) => `
         <div class="cart-item">
             <div class="cart-item-info">
                 <div class="cart-item-name">${item.name}</div>
@@ -345,120 +691,130 @@ function renderCart() {
                 <button class="qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
             </div>
         </div>
-    `).join('');
+    `,
+    )
+    .join("");
 
-    const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    document.getElementById('cart-total').textContent = `${total.toFixed(2)} ₼`;
-    calculateDebt();
+  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  document.getElementById("cart-total").textContent = `${total.toFixed(2)} ₼`;
+  calculateDebt();
 }
 
 function updateQty(id, delta) {
-    const item = cart.find(c => c.id === id);
-    if (!item) return;
+  const item = cart.find((c) => c.id === id);
+  if (!item) return;
 
-    item.qty += delta;
-    if (item.qty <= 0) {
-        cart = cart.filter(c => c.id !== id);
-    } else if (item.qty > item.maxStock) {
-        item.qty = item.maxStock;
-        showToast('Stok limiti!', 'warning');
-    }
-    renderCart();
+  item.qty += delta;
+  if (item.qty <= 0) {
+    cart = cart.filter((c) => c.id !== id);
+  } else if (item.qty > item.maxStock) {
+    item.qty = item.maxStock;
+    showToast("Stok limiti!", "warning");
+  }
+  renderCart();
 }
 
 function clearCart() {
-    if (cart.length && confirm('Səbəti təmizləmək istəyirsiniz?')) {
-        cart = [];
-        currentCustomer = null;
-        document.getElementById('customer-phone').value = '';
-        document.getElementById('customer-info').innerHTML = '';
-        document.getElementById('paid-amount').value = '';
-        document.getElementById('sale-employee').value = '';
-        renderCart();
-    }
-}
-
-async function searchCustomer() {
-    const phone = document.getElementById('customer-phone').value.trim();
-    const info = document.getElementById('customer-info');
-
-    if (!phone) {
-        currentCustomer = null;
-        info.innerHTML = '';
-        return;
-    }
-
-    try {
-        const res = await fetch(`${API}/api/customers/phone/${encodeURIComponent(phone)}`);
-        if (res.ok) {
-            const customer = await res.json();
-            currentCustomer = customer;
-            info.innerHTML = `✓ ${customer.fullName}`;
-            info.style.color = '#10b981';
-        } else {
-            currentCustomer = null;
-            info.innerHTML = 'Müştəri tapılmadı';
-            info.style.color = '#f59e0b';
-        }
-    } catch(e) {}
+  if (cart.length && confirm("Səbəti təmizləmək istəyirsiniz?")) {
+    cart = [];
+    currentCustomer = null;
+    const customerSearch = document.getElementById("customer-search-input");
+    if (customerSearch) customerSearch.value = "";
+    const customerSelect = document.getElementById("customer-select");
+    if (customerSelect) customerSelect.selectedIndex = 0;
+    document.getElementById("customer-info").innerHTML = "";
+    document.getElementById("paid-amount").value = "";
+    document.getElementById("sale-employee").value = "";
+    const paymentMethod = document.getElementById("payment-method");
+    if (paymentMethod) paymentMethod.value = "CASH";
+    onPaymentMethodChange();
+    renderCart();
+  }
 }
 
 function calculateDebt() {
-    const total = parseFloat(document.getElementById('cart-total').textContent) || 0;
-    const paid = parseFloat(document.getElementById('paid-amount').value) || 0;
-    const debt = total - paid;
+  const total =
+    parseFloat(document.getElementById("cart-total").textContent) || 0;
+  const paid = parseFloat(document.getElementById("paid-amount").value) || 0;
+  const debt = total - paid;
 
-    const display = document.getElementById('debt-display');
-    if (debt > 0) {
-        display.textContent = `Borc: ${debt.toFixed(2)} ₼`;
-        display.style.display = 'block';
-    } else {
-        display.style.display = 'none';
-    }
+  const display = document.getElementById("debt-display");
+  if (debt > 0) {
+    display.textContent = `Borc: ${debt.toFixed(2)} ₼`;
+    display.style.display = "block";
+  } else {
+    display.style.display = "none";
+  }
 }
 
 async function completeSale() {
-    if (!cart.length) {
-        showToast('Səbət boşdur!', 'error');
-        return;
-    }
+  if (!cart.length) {
+    showToast("Səbət boşdur!", "error");
+    return;
+  }
 
-    const employeeId = document.getElementById('sale-employee').value;
-    if (!employeeId) {
-        showToast('İşçi seçməlisən! (Bonus üçün lazımdır)', 'error');
-        return;
-    }
+  const employeeId = document.getElementById("sale-employee").value;
+  const paymentMethod =
+    document.getElementById("payment-method")?.value || "CASH";
 
-    const total = parseFloat(document.getElementById('cart-total').textContent) || 0;
-    const paid = parseFloat(document.getElementById('paid-amount').value) || 0;
+  const total =
+    parseFloat(document.getElementById("cart-total").textContent) || 0;
+  const paid = parseFloat(document.getElementById("paid-amount").value) || 0;
 
-    if (total - paid > 0 && !currentCustomer) {
-        showToast('Borca satış üçün müştəri lazımdır!', 'error');
-        return;
-    }
+  if (paymentMethod === "DEBT" && !currentCustomer) {
+    showToast("Borclu satış üçün müştəri seçin!", "error");
+    return;
+  }
 
-    try {
-        const res = await fetch(`${API}/api/orders`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                employeeId: parseInt(employeeId),
+  if (total - paid > 0 && !currentCustomer) {
+    showToast("Borca satış üçün müştəri lazımdır!", "error");
+    return;
+  }
+
+  if (paymentMethod === "DEBT" && total - paid <= 0) {
+    showToast("Borclu satış üçün qalıq borc olmalıdır", "warning");
+    return;
+  }
+
+  try {
+    const endpoint =
+      paymentMethod === "DEBT" ? `${API}/api/sales/debt` : `${API}/api/orders`;
+
+    await fetchJson(
+      endpoint,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body:
+          paymentMethod === "DEBT"
+            ? JSON.stringify({
+                employeeId: employeeId ? parseInt(employeeId) : null,
+                customerId: currentCustomer?.id,
+                amount: paid,
+                products: cart.map((i) => ({
+                  productId: i.id,
+                  quantity: i.qty,
+                })),
+              })
+            : JSON.stringify({
+                employeeId: employeeId ? parseInt(employeeId) : null,
                 customerId: currentCustomer?.id || null,
                 paidAmount: paid,
-                items: cart.map(i => ({productId: i.id, quantity: i.qty}))
-            })
-        });
+                items: cart.map((i) => ({ productId: i.id, quantity: i.qty })),
+              }),
+      },
+      "Satış tamamlanmadı",
+    );
 
-        if (res.ok) {
-            showToast('Satış tamamlandı!');
-            clearCart();
-            loadDashboard();
-        } else {
-            showToast('Xəta baş verdi!', 'error');
-        }
-    } catch(e) {
-        showToast('Əlaqə xətası!', 'error');
-    }
+    showToast("Satış tamamlandı!");
+    clearCart();
+    loadPOS();
+    loadDashboard();
+    loadOrders();
+    loadDebts();
+  } catch (e) {
+    showToast(e.message || "Əlaqə xətası!", "error");
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -466,193 +822,246 @@ async function completeSale() {
 // ═══════════════════════════════════════════════════════════
 
 async function loadProducts() {
-    try {
-        const res = await fetch(`${API}/api/products`);
-        const products = await res.json();
+  try {
+    const productList = await fetchJson(
+      `${API}/api/products`,
+      {},
+      "Məhsullar yüklənmədi",
+    );
 
-        const tbody = document.getElementById('products-table');
+    const tbody = document.getElementById("products-table");
 
-        if (!products || !products.length) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:#94a3b8;">Məhsul yoxdur</td></tr>';
-            return;
+    if (!productList || !productList.length) {
+      tbody.innerHTML =
+        '<tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;">Məhsul yoxdur</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = productList
+      .map((p) => {
+        let statusBadge = "";
+        if (p.stockQuantity === 0) {
+          statusBadge = '<span class="badge badge-danger">Bitib</span>';
+        } else if (p.stockQuantity <= (p.minStockLevel || 10)) {
+          statusBadge = '<span class="badge badge-warning">Az qalıb</span>';
+        } else {
+          statusBadge = '<span class="badge badge-success">Stokda</span>';
         }
 
-        tbody.innerHTML = products.map(p => {
-            let statusBadge = '';
-            if (p.stockQuantity === 0) {
-                statusBadge = '<span class="badge badge-danger">Bitib</span>';
-            } else if (p.stockQuantity <= (p.minStockLevel || 10)) {
-                statusBadge = '<span class="badge badge-warning">Az qalıb</span>';
-            } else {
-                statusBadge = '<span class="badge badge-success">Stokda</span>';
-            }
-
-            return `
+        return `
                 <tr>
                     <td>#${p.id}</td>
-                    <td>${p.barcode || '—'}</td>
+                    <td>${p.barcode || "—"}</td>
                     <td><strong>${p.productName}</strong></td>
                     <td>${p.sellingPrice} ₼</td>
                     <td>${p.stockQuantity}</td>
                     <td>${statusBadge}</td>
+                    <td>
+                        <div class="stock-controls">
+                            <input type="number" id="stock-step-${p.id}" class="stock-step-input" value="1" min="1">
+                            <button class="btn-text" onclick="adjustProductStock(${p.id}, -1)">−</button>
+                            <button class="btn-text" onclick="adjustProductStock(${p.id}, 1)">+</button>
+                        </div>
+                    </td>
                 </tr>
             `;
-        }).join('');
-    } catch(e) {
-        console.error('Products error:', e);
+      })
+      .join("");
+  } catch (e) {
+    console.error("Products error:", e);
+    showToast(e.message || "Məhsullar yüklənmədi", "error");
+  }
+}
+
+function getStockStep(productId) {
+  const stepInput = document.getElementById(`stock-step-${productId}`);
+  const step = parseInt(stepInput?.value, 10);
+  if (!step || step <= 0) {
+    showToast("Miqdar 1-dən böyük olmalıdır", "warning");
+    return null;
+  }
+  return step;
+}
+
+async function adjustProductStock(productId, direction) {
+  const step = getStockStep(productId);
+  if (step === null) return;
+
+  const quantity = direction > 0 ? step : -step;
+
+  try {
+    await fetchJson(
+      `${API}/api/products/${productId}/stock?quantity=${quantity}`,
+      {
+        method: "PATCH",
+      },
+      "Stok yenilənmədi",
+    );
+
+    showToast("Stok uğurla yeniləndi");
+    loadProducts();
+    if (document.getElementById("pos")?.classList.contains("active")) {
+      loadPOS();
     }
+  } catch (e) {
+    showToast(e.message || "Stok yenilənmədi", "error");
+  }
 }
 
 function openProductModal() {
-    resetProductModal();
-    document.getElementById('product-modal').classList.add('active');
+  resetProductModal();
+  document.getElementById("product-modal").classList.add("active");
 }
 
 function resetProductModal() {
-    existingProduct = null;
-    document.getElementById('step-barcode').style.display = 'block';
-    document.getElementById('step-stock-update').style.display = 'none';
-    document.getElementById('step-new-product').style.display = 'none';
-    document.getElementById('scanner-container').style.display = 'none';
-    document.getElementById('manual-barcode-input').style.display = 'none';
-    stopProductScanner();
+  existingProduct = null;
+  document.getElementById("step-barcode").style.display = "block";
+  document.getElementById("step-stock-update").style.display = "none";
+  document.getElementById("step-new-product").style.display = "none";
+  document.getElementById("scanner-container").style.display = "none";
+  document.getElementById("manual-barcode-input").style.display = "none";
+  stopProductScanner();
 }
 
 function startProductScanner() {
-    document.getElementById('scanner-container').style.display = 'block';
+  document.getElementById("scanner-container").style.display = "block";
 
-    productScanner = new Html5QrcodeScanner("product-scanner", {
-        fps: 10,
-        qrbox: {width: 250, height: 250}
-    });
+  productScanner = new Html5QrcodeScanner("product-scanner", {
+    fps: 10,
+    qrbox: { width: 250, height: 250 },
+  });
 
-    productScanner.render(
-        (decodedText) => {
-            showToast('Barkod oxundu: ' + decodedText);
-            stopProductScanner();
-            checkBarcodeApi(decodedText);
-        },
-        (err) => {}
-    );
+  productScanner.render(
+    (decodedText) => {
+      showToast("Barkod oxundu: " + decodedText);
+      stopProductScanner();
+      checkBarcodeApi(decodedText);
+    },
+    (err) => {},
+  );
 }
 
 function stopProductScanner() {
-    if (productScanner) {
-        productScanner.clear().catch(e => {});
-        productScanner = null;
-    }
+  if (productScanner) {
+    productScanner.clear().catch((e) => {});
+    productScanner = null;
+  }
 }
 
 function showManualBarcode() {
-    document.getElementById('manual-barcode-input').style.display = 'block';
+  document.getElementById("manual-barcode-input").style.display = "block";
 }
 
 function checkBarcode() {
-    const barcode = document.getElementById('manual-barcode').value.trim();
-    if (!barcode) {
-        showToast('Barkod daxil et!', 'error');
-        return;
-    }
-    checkBarcodeApi(barcode);
+  const barcode = document.getElementById("manual-barcode").value.trim();
+  if (!barcode) {
+    showToast("Barkod daxil et!", "error");
+    return;
+  }
+  checkBarcodeApi(barcode);
 }
 
 async function checkBarcodeApi(barcode) {
-    try {
-        const res = await fetch(`${API}/api/products/barcode/${encodeURIComponent(barcode)}`);
+  try {
+    const res = await fetch(
+      `${API}/api/products/barcode/${encodeURIComponent(barcode)}`,
+    );
 
-        if (res.ok) {
-            // Məhsul mövcuddur - stok artırma
-            existingProduct = await res.json();
-            document.getElementById('step-barcode').style.display = 'none';
-            document.getElementById('step-stock-update').style.display = 'block';
-            document.getElementById('existing-product-info').textContent =
-                `${existingProduct.productName} - Cari stok: ${existingProduct.stockQuantity}`;
-        } else {
-            // Yeni məhsul
-            document.getElementById('step-barcode').style.display = 'none';
-            document.getElementById('step-new-product').style.display = 'block';
-            document.getElementById('new-barcode').value = barcode;
-        }
-    } catch(e) {
-        showToast('Xəta baş verdi!', 'error');
+    if (res.ok) {
+      // Məhsul mövcuddur - stok artırma
+      existingProduct = await res.json();
+      document.getElementById("step-barcode").style.display = "none";
+      document.getElementById("step-stock-update").style.display = "block";
+      document.getElementById("existing-product-info").textContent =
+        `${existingProduct.productName} - Cari stok: ${existingProduct.stockQuantity}`;
+    } else {
+      // Yeni məhsul
+      document.getElementById("step-barcode").style.display = "none";
+      document.getElementById("step-new-product").style.display = "block";
+      document.getElementById("new-barcode").value = barcode;
     }
+  } catch (e) {
+    showToast("Xəta baş verdi!", "error");
+  }
 }
 
 async function addStock() {
-    const qty = parseInt(document.getElementById('stock-add-qty').value);
-    if (!qty || qty <= 0) {
-        showToast('Miqdar düzgün deyil!', 'error');
-        return;
-    }
+  const qty = parseInt(document.getElementById("stock-add-qty").value);
+  if (!qty || qty <= 0) {
+    showToast("Miqdar düzgün deyil!", "error");
+    return;
+  }
 
-    try {
-        const newStock = existingProduct.stockQuantity + qty;
-        const res = await fetch(`${API}/api/products/barcode/${encodeURIComponent(existingProduct.barcode)}/stock?qty=${newStock}`, {
-            method: 'PATCH'
-        });
+  try {
+    const res = await fetch(
+      `${API}/api/products/barcode/${encodeURIComponent(existingProduct.barcode)}/stock?qty=${qty}`,
+      {
+        method: "PATCH",
+      },
+    );
 
-        if (res.ok) {
-            showToast(`${qty} ədəd stok əlavə edildi!`);
-            closeModal('product-modal');
-            loadProducts();
-        } else {
-            showToast('Xəta baş verdi!', 'error');
-        }
-    } catch(e) {
-        showToast('Əlaqə xətası!', 'error');
+    if (res.ok) {
+      showToast(`${qty} ədəd stok əlavə edildi!`);
+      closeModal("product-modal");
+      loadProducts();
+    } else {
+      showToast("Xəta baş verdi!", "error");
     }
+  } catch (e) {
+    showToast("Əlaqə xətası!", "error");
+  }
 }
 
 async function convertCurrency() {
-    const foreign = parseFloat(document.getElementById('new-foreign').value);
-    const currency = document.getElementById('new-currency').value;
+  const foreign = parseFloat(document.getElementById("new-foreign").value);
+  const currency = document.getElementById("new-currency").value;
 
-    if (!foreign) {
-        showToast('Məbləğ daxil et!', 'error');
-        return;
-    }
+  if (!foreign) {
+    showToast("Məbləğ daxil et!", "error");
+    return;
+  }
 
-    let azn = foreign;
-    if (currency === 'USD') azn = foreign * usdRate;
-    if (currency === 'EUR') azn = foreign * eurRate;
+  let azn = foreign;
+  if (currency === "USD") azn = foreign * usdRate;
+  if (currency === "EUR") azn = foreign * eurRate;
 
-    document.getElementById('new-cost').value = azn.toFixed(2);
-    showToast(`${foreign} ${currency} = ${azn.toFixed(2)} AZN`);
+  document.getElementById("new-cost").value = azn.toFixed(2);
+  showToast(`${foreign} ${currency} = ${azn.toFixed(2)} AZN`);
 }
 
 async function saveNewProduct() {
-    const product = {
-        barcode: document.getElementById('new-barcode').value,
-        productName: document.getElementById('new-name').value.trim(),
-        sellingPrice: parseFloat(document.getElementById('new-price').value),
-        costPrice: parseFloat(document.getElementById('new-cost').value) || 0,
-        category: document.getElementById('new-category').value.trim() || 'Ümumi',
-        stockQuantity: parseInt(document.getElementById('new-stock').value)
-    };
+  const product = {
+    barcode: document.getElementById("new-barcode").value,
+    name: document.getElementById("new-name").value.trim(),
+    price: parseFloat(document.getElementById("new-price").value),
+    costPrice: parseFloat(document.getElementById("new-cost").value) || 0,
+    category: document.getElementById("new-category").value.trim() || "Ümumi",
+    stockQty: parseInt(document.getElementById("new-stock").value),
+  };
 
-    if (!product.productName || !product.sellingPrice || !product.stockQuantity) {
-        showToast('Məcburi sahələri doldurun!', 'error');
-        return;
+  if (!product.name || !product.price || !product.stockQty) {
+    showToast("Məcburi sahələri doldurun!", "error");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/products`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(product),
+    });
+
+    if (res.ok) {
+      showToast("Məhsul əlavə edildi!");
+      closeModal("product-modal");
+      loadProducts();
+    } else {
+      const error = await res.text();
+      showToast("Xəta: " + error, "error");
     }
-
-    try {
-        const res = await fetch(`${API}/api/products`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(product)
-        });
-
-        if (res.ok) {
-            showToast('Məhsul əlavə edildi!');
-            closeModal('product-modal');
-            loadProducts();
-        } else {
-            const error = await res.text();
-            showToast('Xəta: ' + error, 'error');
-        }
-    } catch(e) {
-        showToast('Əlaqə xətası!', 'error');
-    }
+  } catch (e) {
+    showToast("Əlaqə xətası!", "error");
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -660,36 +1069,84 @@ async function saveNewProduct() {
 // ═══════════════════════════════════════════════════════════
 
 async function loadOrders() {
-    try {
-        const orders = await fetch(`${API}/api/orders`).then(r => r.json());
-        const tbody = document.getElementById('orders-table');
+  try {
+    const orders = await fetchJson(
+      `${API}/api/orders`,
+      {},
+      "Sifarişlər yüklənmədi",
+    );
+    const tbody = document.getElementById("orders-table");
 
-        if (!orders || !orders.length) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:#94a3b8;">Sifariş yoxdur</td></tr>';
-            return;
-        }
+    if (!orders || !orders.length) {
+      tbody.innerHTML =
+        '<tr><td colspan="9" style="text-align:center;padding:32px;color:#94a3b8;">Sifariş yoxdur</td></tr>';
+      return;
+    }
 
-        tbody.innerHTML = orders.map(o => {
-            const debt = (parseFloat(o.totalAmount) - parseFloat(o.paidAmount || 0)).toFixed(2);
-            const canReturn = o.paymentStatus === 'PAID' || o.paymentStatus === 'PARTIAL';
+    tbody.innerHTML = orders
+      .map((o) => {
+        const total = parseFloat(o.totalAmount || 0);
+        const paid = parseFloat(o.paidAmount || 0);
+        const balance = total - paid;
+        const debt = Math.max(balance, 0).toFixed(2);
+        const change = Math.max(-balance, 0).toFixed(2);
+        const isCancelled = o.status === "CANCELLED";
+        const statusText = isCancelled
+          ? "Ləğv edilib"
+          : getStatusText(o.paymentStatus);
+        const statusClass = isCancelled
+          ? "secondary"
+          : getStatusClass(o.paymentStatus);
+        const balanceText =
+          change !== "0.00" ? `Üstü: ${change} ₼` : `${debt} ₼`;
 
-            return `
+        return `
                 <tr>
                     <td>#${o.id}</td>
-                    <td>${o.customer?.fullName || 'Anonim'}</td>
-                    <td>${o.employee?.fullName || '—'}</td>
+                    <td>${o.customer?.fullName || "Anonim"}</td>
+                    <td>${o.employee?.fullName || "—"}</td>
                     <td>${o.totalAmount} ₼</td>
                     <td>${o.paidAmount || 0} ₼</td>
-                    <td>${debt} ₼</td>
-                    <td><span class="badge badge-${getStatusClass(o.paymentStatus)}">${getStatusText(o.paymentStatus)}</span></td>
+                    <td>${balanceText}</td>
+                    <td><span class="badge badge-${statusClass}">${statusText}</span></td>
                     <td>${formatDate(o.orderedAt)}</td>
                     <td>
-                        ${canReturn ? `<button class="btn-text" onclick="openReturnModal(${o.id})" style="color:#ef4444">İadə/Ləğv</button>` : '—'}
+                        <button class="btn-text" onclick="deleteOrder(${o.id})" style="color:#ef4444">Sil</button>
                     </td>
                 </tr>
             `;
-        }).join('');
-    } catch(e) {}
+      })
+      .join("");
+  } catch (e) {
+    showToast(e.message || "Sifarişlər yüklənmədi", "error");
+  }
+}
+
+async function deleteOrder(orderId) {
+  if (
+    !confirm(
+      "Bu sifarişi silmək istədiyinizə əminsiniz? Stok geri qaytarılacaq.",
+    )
+  )
+    return;
+
+  try {
+    const res = await fetch(`${API}/api/orders/${orderId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      throw new Error(await readApiError(res, "Sifariş silinmədi"));
+    }
+
+    showToast("Sifariş silindi və stok geri qaytarıldı");
+    loadOrders();
+    loadDashboard();
+    loadProducts();
+    loadPOS();
+    loadDebts();
+  } catch (e) {
+    showToast(e.message || "Sifariş silinmədi", "error");
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -697,60 +1154,72 @@ async function loadOrders() {
 // ═══════════════════════════════════════════════════════════
 
 async function loadCustomers() {
-    try {
-        const customers = await fetch(`${API}/api/customers`).then(r => r.json());
-        const tbody = document.getElementById('customers-table');
+  try {
+    const customers = await fetchJson(
+      `${API}/api/customers`,
+      {},
+      "Müştərilər yüklənmədi",
+    );
+    const tbody = document.getElementById("customers-table");
 
-        if (!customers || !customers.length) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:#94a3b8;">Müştəri yoxdur</td></tr>';
-            return;
-        }
+    if (!customers || !customers.length) {
+      tbody.innerHTML =
+        '<tr><td colspan="4" style="text-align:center;padding:32px;color:#94a3b8;">Müştəri yoxdur</td></tr>';
+      return;
+    }
 
-        tbody.innerHTML = customers.map(c => `
+    tbody.innerHTML = customers
+      .map(
+        (c) => `
             <tr>
                 <td>#${c.id}</td>
                 <td><strong>${c.fullName}</strong></td>
-                <td>${c.phone || '—'}</td>
+                <td>${c.phone || "—"}</td>
                 <td>${formatDate(c.registeredAt)}</td>
             </tr>
-        `).join('');
-    } catch(e) {}
+        `,
+      )
+      .join("");
+  } catch (e) {
+    showToast(e.message || "Müştərilər yüklənmədi", "error");
+  }
 }
 
 function openCustomerModal() {
-    document.getElementById('customer-modal').classList.add('active');
+  document.getElementById("customer-modal").classList.add("active");
 }
 
 async function saveCustomer() {
-    const customer = {
-        fullName: document.getElementById('c-name').value.trim(),
-        phone: document.getElementById('c-phone').value.trim()
-    };
+  const customer = {
+    fullName: document.getElementById("c-name").value.trim(),
+    phone: document.getElementById("c-phone").value.trim(),
+  };
 
-    if (!customer.fullName || !customer.phone) {
-        showToast('Ad və telefon məcburidir!', 'error');
-        return;
+  if (!customer.fullName || !customer.phone) {
+    showToast("Ad və telefon məcburidir!", "error");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/customers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(customer),
+    });
+
+    if (res.ok) {
+      showToast("Müştəri əlavə edildi!");
+      closeModal("customer-modal");
+      loadCustomers();
+      document.getElementById("c-name").value = "";
+      document.getElementById("c-phone").value = "";
+    } else {
+      const message = await readApiError(res, "Müştəri əlavə edilmədi");
+      showToast(message, "error");
     }
-
-    try {
-        const res = await fetch(`${API}/api/customers`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(customer)
-        });
-
-        if (res.ok) {
-            showToast('Müştəri əlavə edildi!');
-            closeModal('customer-modal');
-            loadCustomers();
-            document.getElementById('c-name').value = '';
-            document.getElementById('c-phone').value = '';
-        } else {
-            showToast('Bu nömrə artıq qeydiyyatdadır!', 'error');
-        }
-    } catch(e) {
-        showToast('Əlaqə xətası!', 'error');
-    }
+  } catch (e) {
+    showToast("Əlaqə xətası!", "error");
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -758,88 +1227,101 @@ async function saveCustomer() {
 // ═══════════════════════════════════════════════════════════
 
 async function loadEmployees() {
-    try {
-        const employees = await fetch(`${API}/api/employees`).then(r => r.json());
-        const tbody = document.getElementById('employees-table');
+  try {
+    const employees = await fetchJson(
+      `${API}/api/employees`,
+      {},
+      "İşçilər yüklənmədi",
+    );
+    const tbody = document.getElementById("employees-table");
 
-        if (!employees || !employees.length) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;">İşçi yoxdur</td></tr>';
-            return;
-        }
+    if (!employees || !employees.length) {
+      tbody.innerHTML =
+        '<tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;">İşçi yoxdur</td></tr>';
+      return;
+    }
 
-        tbody.innerHTML = employees.map(e => `
+    tbody.innerHTML = employees
+      .map(
+        (e) => `
             <tr>
                 <td>#${e.id}</td>
                 <td><strong>${e.fullName}</strong></td>
-                <td>${e.phone || '—'}</td>
+                <td>${e.phone || "—"}</td>
                 <td>${e.baseSalary} ₼</td>
                 <td>${formatDate(e.hiredAt)}</td>
-                <td><span class="badge badge-${e.active ? 'success' : 'danger'}">${e.active ? 'Aktiv' : 'Deaktiv'}</span></td>
+                <td><span class="badge badge-${e.active ? "success" : "danger"}">${e.active ? "Aktiv" : "Deaktiv"}</span></td>
                 <td>
-                    ${e.active ? `<button class="btn-text" style="color:#ef4444;" onclick="deactivateEmployee(${e.id})">Deaktiv et</button>` : '—'}
+                    ${e.active ? `<button class="btn-text" style="color:#ef4444;" onclick="deactivateEmployee(${e.id})">Deaktiv et</button>` : "—"}
                 </td>
             </tr>
-        `).join('');
-    } catch(e) {}
+        `,
+      )
+      .join("");
+  } catch (e) {
+    showToast(e.message || "İşçilər yüklənmədi", "error");
+  }
 }
 
 function openEmployeeModal() {
-    document.getElementById('employee-modal').classList.add('active');
+  document.getElementById("employee-modal").classList.add("active");
 }
 
 async function saveEmployee() {
-    const employee = {
-        fullName: document.getElementById('emp-name').value.trim(),
-        phone: document.getElementById('emp-phone').value.trim() || null,
-        baseSalary: parseFloat(document.getElementById('emp-salary').value),
-        hiredAt: document.getElementById('emp-hired').value || new Date().toISOString().split('T')[0]
-    };
+  const employee = {
+    fullName: document.getElementById("emp-name").value.trim(),
+    phone: document.getElementById("emp-phone").value.trim() || null,
+    baseSalary: parseFloat(document.getElementById("emp-salary").value),
+    hiredAt:
+      document.getElementById("emp-hired").value ||
+      new Date().toISOString().split("T")[0],
+  };
 
-    if (!employee.fullName || !employee.baseSalary) {
-        showToast('Ad və maaş məcburidir!', 'error');
-        return;
+  if (!employee.fullName || !employee.baseSalary) {
+    showToast("Ad və maaş məcburidir!", "error");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/employees`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(employee),
+    });
+
+    if (res.ok) {
+      showToast("İşçi əlavə edildi!");
+      closeModal("employee-modal");
+      loadEmployees();
+      document.getElementById("emp-name").value = "";
+      document.getElementById("emp-phone").value = "";
+      document.getElementById("emp-salary").value = "";
+      document.getElementById("emp-hired").value = "";
+    } else {
+      showToast("Xəta baş verdi!", "error");
     }
-
-    try {
-        const res = await fetch(`${API}/api/employees`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(employee)
-        });
-
-        if (res.ok) {
-            showToast('İşçi əlavə edildi!');
-            closeModal('employee-modal');
-            loadEmployees();
-            document.getElementById('emp-name').value = '';
-            document.getElementById('emp-phone').value = '';
-            document.getElementById('emp-salary').value = '';
-            document.getElementById('emp-hired').value = '';
-        } else {
-            showToast('Xəta baş verdi!', 'error');
-        }
-    } catch(e) {
-        showToast('Əlaqə xətası!', 'error');
-    }
+  } catch (e) {
+    showToast("Əlaqə xətası!", "error");
+  }
 }
 
 async function deactivateEmployee(id) {
-    if (!confirm('Bu işçini deaktiv etmək istəyirsiniz?')) return;
+  if (!confirm("Bu işçini deaktiv etmək istəyirsiniz?")) return;
 
-    try {
-        const res = await fetch(`${API}/api/employees/${id}/deactivate`, {
-            method: 'PATCH'
-        });
+  try {
+    const res = await fetch(`${API}/api/employees/${id}/deactivate`, {
+      method: "PATCH",
+    });
 
-        if (res.ok) {
-            showToast('İşçi deaktiv edildi!');
-            loadEmployees();
-        } else {
-            showToast('Xəta baş verdi!', 'error');
-        }
-    } catch(e) {
-        showToast('Əlaqə xətası!', 'error');
+    if (res.ok) {
+      showToast("İşçi deaktiv edildi!");
+      loadEmployees();
+    } else {
+      showToast("Xəta baş verdi!", "error");
     }
+  } catch (e) {
+    showToast("Əlaqə xətası!", "error");
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -847,25 +1329,34 @@ async function deactivateEmployee(id) {
 // ═══════════════════════════════════════════════════════════
 
 async function loadDebts() {
-    try {
-        const [debts, partials] = await Promise.all([
-            fetch(`${API}/api/orders/debts`).then(r => r.json()),
-            fetch(`${API}/api/orders/partials`).then(r => r.json())
-        ]);
-        const all = [...debts, ...partials];
-        const tbody = document.getElementById('debts-table');
+  try {
+    const [debts, partials] = await Promise.all([
+      fetchJson(`${API}/api/orders/debts`, {}, "Borclar yüklənmədi"),
+      fetchJson(
+        `${API}/api/orders/partials`,
+        {},
+        "Qismən ödənişlər yüklənmədi",
+      ),
+    ]);
+    const all = [...debts, ...partials];
+    const tbody = document.getElementById("debts-table");
 
-        if (!all.length) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;">Borc yoxdur</td></tr>';
-            return;
-        }
+    if (!all.length) {
+      tbody.innerHTML =
+        '<tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;">Borc yoxdur</td></tr>';
+      return;
+    }
 
-        tbody.innerHTML = all.map(o => {
-            const debt = (parseFloat(o.totalAmount) - parseFloat(o.paidAmount || 0)).toFixed(2);
-            return `
+    tbody.innerHTML = all
+      .map((o) => {
+        const debt = Math.max(
+          parseFloat(o.totalAmount || 0) - parseFloat(o.paidAmount || 0),
+          0,
+        ).toFixed(2);
+        return `
                 <tr>
                     <td>#${o.id}</td>
-                    <td><strong>${o.customer?.fullName || 'Anonim'}</strong></td>
+                    <td><strong>${o.customer?.fullName || "Anonim"}</strong></td>
                     <td>${o.totalAmount} ₼</td>
                     <td>${o.paidAmount || 0} ₼</td>
                     <td><strong style="color:#ef4444">${debt} ₼</strong></td>
@@ -873,26 +1364,32 @@ async function loadDebts() {
                     <td><button class="btn-primary" style="padding:6px 12px;font-size:13px" onclick="payDebt(${o.id}, ${debt})">Ödə</button></td>
                 </tr>
             `;
-        }).join('');
-    } catch(e) {}
+      })
+      .join("");
+  } catch (e) {
+    showToast(e.message || "Borc məlumatı yüklənmədi", "error");
+  }
 }
 
 async function payDebt(orderId, debt) {
-    const amount = prompt(`Ödəniləcək məbləğ (Borc: ${debt} ₼):`, debt);
-    if (!amount || parseFloat(amount) <= 0) return;
+  const amount = prompt(`Ödəniləcək məbləğ (Borc: ${debt} ₼):`, debt);
+  if (!amount || parseFloat(amount) <= 0) return;
 
-    try {
-        const res = await fetch(`${API}/api/orders/${orderId}/pay?amount=${amount}`, {method: 'PATCH'});
-        if (res.ok) {
-            showToast('Ödəniş edildi!');
-            loadDebts();
-            loadDashboard();
-        } else {
-            showToast('Xəta!', 'error');
-        }
-    } catch(e) {
-        showToast('Əlaqə xətası!', 'error');
+  try {
+    const res = await fetch(
+      `${API}/api/orders/${orderId}/pay?amount=${encodeURIComponent(amount)}`,
+      { method: "PATCH" },
+    );
+    if (res.ok) {
+      showToast("Ödəniş edildi!");
+      loadDebts();
+      loadDashboard();
+    } else {
+      showToast(await readApiError(res, "Ödəniş alınmadı"), "error");
     }
+  } catch (e) {
+    showToast("Əlaqə xətası!", "error");
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -900,91 +1397,95 @@ async function payDebt(orderId, debt) {
 // ═══════════════════════════════════════════════════════════
 
 async function exportMonthly() {
-    const year = prompt('İl:', new Date().getFullYear());
-    const month = prompt('Ay (1-12):', new Date().getMonth() + 1);
+  const year = prompt("İl:", new Date().getFullYear());
+  const month = prompt("Ay (1-12):", new Date().getMonth() + 1);
 
-    if (!year || !month) return;
+  if (!year || !month) return;
 
-    try {
-        showToast('Excel hazırlanır...');
-        const response = await fetch(`${API}/api/export/monthly?year=${year}&month=${month}`);
+  try {
+    showToast("Excel hazırlanır...");
+    const response = await fetch(
+      `${API}/api/export/monthly?year=${year}&month=${month}`,
+    );
 
-        if (!response.ok) {
-            showToast('Export xətası: ' + response.status, 'error');
-            return;
-        }
-
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = `hesabat-${year}-${month}.xlsx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(downloadUrl);
-
-        showToast('Excel yükləndi! ✓');
-    } catch(e) {
-        showToast('Xəta: ' + e.message, 'error');
+    if (!response.ok) {
+      showToast("Export xətası: " + response.status, "error");
+      return;
     }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = `hesabat-${year}-${month}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+
+    showToast("Excel yükləndi! ✓");
+  } catch (e) {
+    showToast("Xəta: " + e.message, "error");
+  }
 }
 
 async function exportBonus() {
-    const year = prompt('İl:', new Date().getFullYear());
-    const quarter = prompt('Rüb (1-4):', 1);
+  const year = prompt("İl:", new Date().getFullYear());
+  const quarter = prompt("Rüb (1-4):", 1);
 
-    if (!year || !quarter) return;
+  if (!year || !quarter) return;
 
-    try {
-        showToast('Excel hazırlanır...');
-        const response = await fetch(`${API}/api/export/bonus?year=${year}&quarter=${quarter}`);
+  try {
+    showToast("Excel hazırlanır...");
+    const response = await fetch(
+      `${API}/api/export/bonus?year=${year}&quarter=${quarter}`,
+    );
 
-        if (!response.ok) {
-            showToast('Export xətası: ' + response.status, 'error');
-            return;
-        }
-
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = `bonus-${year}-Q${quarter}.xlsx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(downloadUrl);
-
-        showToast('Excel yükləndi! ✓');
-    } catch(e) {
-        showToast('Xəta: ' + e.message, 'error');
+    if (!response.ok) {
+      showToast("Export xətası: " + response.status, "error");
+      return;
     }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = `bonus-${year}-Q${quarter}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+
+    showToast("Excel yükləndi! ✓");
+  } catch (e) {
+    showToast("Xəta: " + e.message, "error");
+  }
 }
 
 async function exportProducts() {
-    try {
-        showToast('Excel hazırlanır...');
-        const response = await fetch(`${API}/api/export/products`);
+  try {
+    showToast("Excel hazırlanır...");
+    const response = await fetch(`${API}/api/export/products`);
 
-        if (!response.ok) {
-            showToast('Export xətası: ' + response.status, 'error');
-            return;
-        }
-
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = 'mehsullar.xlsx';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(downloadUrl);
-
-        showToast('Excel yükləndi! ✓');
-    } catch(e) {
-        showToast('Xəta: ' + e.message, 'error');
+    if (!response.ok) {
+      showToast("Export xətası: " + response.status, "error");
+      return;
     }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = "mehsullar.xlsx";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+
+    showToast("Excel yükləndi! ✓");
+  } catch (e) {
+    showToast("Xəta: " + e.message, "error");
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -992,49 +1493,72 @@ async function exportProducts() {
 // ═══════════════════════════════════════════════════════════
 
 function openScanner() {
-    document.getElementById('scanner-modal').classList.add('active');
+  document.getElementById("scanner-modal").classList.add("active");
 
-    html5QrcodeScanner = new Html5QrcodeScanner("pos-scanner-container", {
-        fps: 10,
-        qrbox: {width: 250, height: 250}
-    });
+  html5QrcodeScanner = new Html5QrcodeScanner("pos-scanner-container", {
+    fps: 10,
+    qrbox: { width: 250, height: 250 },
+  });
 
-    html5QrcodeScanner.render(
-        (decodedText) => {
-            document.getElementById('scanner-result').textContent = '✓ ' + decodedText;
+  html5QrcodeScanner.render(
+    (decodedText) => {
+      document.getElementById("scanner-result").textContent =
+        "✓ " + decodedText;
 
-            // Məhsulu tap və səbətə at
-            const product = products.find(p => p.barcode === decodedText);
-            if (product) {
-                addToCart(product.id);
-            } else {
-                showToast('Məhsul tapılmadı!', 'error');
-            }
+      // Məhsulu tap və səbətə at
+      const product = products.find((p) => p.barcode === decodedText);
+      if (product) {
+        addToCart(product.id);
+      } else {
+        showToast("Məhsul tapılmadı!", "error");
+      }
 
-            setTimeout(() => closeScanner(), 1000);
-        },
-        (err) => {}
-    );
+      setTimeout(() => closeScanner(), 1000);
+    },
+    (err) => {},
+  );
 }
 
 function closeScanner() {
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear().catch(e => {});
-        html5QrcodeScanner = null;
-    }
-    document.getElementById('scanner-modal').classList.remove('active');
-    document.getElementById('scanner-result').textContent = '';
+  if (html5QrcodeScanner) {
+    html5QrcodeScanner.clear().catch((e) => {});
+    html5QrcodeScanner = null;
+  }
+  document.getElementById("scanner-modal").classList.remove("active");
+  document.getElementById("scanner-result").textContent = "";
 }
 
 // ═══════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════
 
-function closeModal(id) {
-    if (id === 'product-modal') {
-        stopProductScanner();
+async function apiRequest(path, options = {}, fallback = "Sorğu uğursuz oldu") {
+  try {
+    const res = await fetch(`${API}${path}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+      ...options,
+    });
+
+    if (!res.ok) {
+      throw new Error(await readApiError(res, fallback));
     }
-    document.getElementById(id).classList.remove('active');
+
+    if (res.status === 204) return null;
+    const ct = res.headers.get("content-type") || "";
+    return ct.includes("application/json") ? await res.json() : null;
+  } catch (e) {
+    showToast(e.message || "Naməlum xəta", "error");
+    throw e;
+  }
+}
+function closeModal(id) {
+  if (id === "product-modal") {
+    stopProductScanner();
+  }
+  document.getElementById(id).classList.remove("active");
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1044,71 +1568,268 @@ function closeModal(id) {
 let returnOrderId = null;
 
 function openReturnModal(orderId) {
-    returnOrderId = orderId;
-    document.getElementById('return-modal').classList.add('active');
+  returnOrderId = orderId;
+  document.getElementById("return-modal").classList.add("active");
 }
 
 async function confirmReturn() {
-    if (!returnOrderId) return;
+  if (!returnOrderId) return;
 
-    try {
-        const res = await fetch(`${API}/api/orders/${returnOrderId}/cancel`, {
-            method: 'PATCH'
-        });
+  try {
+    const res = await fetch(`${API}/api/orders/${returnOrderId}/cancel`, {
+      method: "PATCH",
+    });
 
-        if (res.ok) {
-            showToast('Sifariş ləğv edildi!');
-            closeModal('return-modal');
-            returnOrderId = null;
-            loadOrders();
-        } else {
-            showToast('Xəta baş verdi!', 'error');
-        }
-    } catch(e) {
-        showToast('Əlaqə xətası!', 'error');
+    if (res.ok) {
+      showToast("Sifariş ləğv edildi!");
+      closeModal("return-modal");
+      returnOrderId = null;
+      loadOrders();
+      loadDashboard();
+      loadDebts();
+      loadPOS();
+      loadProducts();
+    } else {
+      showToast(await readApiError(res, "Sifariş ləğv edilmədi"), "error");
     }
+  } catch (e) {
+    showToast("Əlaqə xətası!", "error");
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════
 
-function showToast(message, type = 'success') {
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-    toast.textContent = message;
-    toast.className = `toast ${type} active`;
-    setTimeout(() => toast.classList.remove('active'), 3000);
+function showToast(message, type = "success") {
+  const toast = document.getElementById("toast");
+  if (!toast) return;
+  toast.textContent = message;
+  toast.className = `toast ${type} active`;
+  setTimeout(() => toast.classList.remove("active"), 3000);
 }
 
 function formatNumber(num) {
-    return new Intl.NumberFormat('az-AZ', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2
-    }).format(num);
+  return new Intl.NumberFormat("az-AZ", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(num);
 }
 
 function formatDate(dateString) {
-    if (!dateString) return '—';
-    return new Date(dateString).toLocaleDateString('az-AZ');
+  if (!dateString) return "—";
+  return new Date(dateString).toLocaleDateString("az-AZ");
 }
 
 function getStatusClass(status) {
-    const map = {'PAID': 'success', 'DEBT': 'danger', 'PARTIAL': 'warning'};
-    return map[status] || 'secondary';
+  const map = { PAID: "success", DEBT: "danger", PARTIAL: "warning" };
+  return map[status] || "secondary";
 }
 
 function getStatusText(status) {
-    const map = {'PAID': 'Ödənildi', 'DEBT': 'Borclu', 'PARTIAL': 'Qismən'};
-    return map[status] || status;
+  const map = { PAID: "Ödənildi", DEBT: "Borclu", PARTIAL: "Qismən" };
+  return map[status] || status;
 }
 
-document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal')) {
-        const modalId = e.target.id;
-        if (modalId === 'product-modal') {
-            stopProductScanner();
-        }
-        e.target.classList.remove('active');
+document.addEventListener("click", (e) => {
+  if (e.target.classList.contains("modal")) {
+    const modalId = e.target.id;
+    if (modalId === "product-modal") {
+      stopProductScanner();
     }
+    e.target.classList.remove("active");
+  }
+  // ...existing code...
+
+  /* ===== HOTFIX: Products stock +/- və Orders delete (UI auto-attach) ===== */
+  (function () {
+    function toast(msg, type = "info") {
+      if (typeof showToast === "function") return showToast(msg, type);
+      alert(msg);
+    }
+
+    async function apiCall(
+      path,
+      options = {},
+      fallback = "Sorğu uğursuz oldu",
+    ) {
+      try {
+        const res = await fetch(`${API}${path}`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {}),
+          },
+          ...options,
+        });
+        if (!res.ok) {
+          const err =
+            typeof readApiError === "function"
+              ? await readApiError(res, fallback)
+              : fallback;
+          throw new Error(err || fallback);
+        }
+        if (res.status === 204) return null;
+        const ct = res.headers.get("content-type") || "";
+        return ct.includes("application/json") ? await res.json() : null;
+      } catch (e) {
+        toast(e.message || "Xəta baş verdi", "error");
+        throw e;
+      }
+    }
+
+    function parseRowId(tr) {
+      const firstTd = tr?.querySelector("td");
+      if (!firstTd) return null;
+      const raw = (firstTd.textContent || "").trim().replace("#", "");
+      const id = Number(raw);
+      return Number.isFinite(id) ? id : null;
+    }
+
+    function ensureHeaderAction(pageId, title) {
+      const page = document.getElementById(pageId);
+      if (!page) return;
+      const table = page.querySelector("table");
+      if (!table) return;
+      const headRow = table.querySelector("thead tr");
+      if (!headRow) return;
+      const lastTh = headRow.lastElementChild;
+      if (lastTh && (lastTh.textContent || "").trim() === title) return;
+      const th = document.createElement("th");
+      th.textContent = title;
+      headRow.appendChild(th);
+    }
+
+    function enhanceProductsTable() {
+      const page = document.getElementById("products");
+      if (!page) return;
+
+      ensureHeaderAction("products", "Stok İdarəsi");
+
+      const rows = page.querySelectorAll("tbody tr");
+      rows.forEach((tr) => {
+        if (tr.dataset.stockEnhanced === "1") return;
+        const id = parseRowId(tr);
+        if (!id) return;
+
+        const td = document.createElement("td");
+        td.innerHTML = `
+        <button class="btn-secondary stock-btn" data-stock-id="${id}" data-delta="1">+1</button>
+        <button class="btn-secondary stock-btn" data-stock-id="${id}" data-delta="-1">-1</button>
+      `;
+        tr.appendChild(td);
+        tr.dataset.stockEnhanced = "1";
+      });
+    }
+
+    async function onStockClick(e) {
+      const btn = e.target.closest(".stock-btn");
+      if (!btn) return;
+
+      const id = Number(btn.dataset.stockId);
+      const delta = Number(btn.dataset.delta);
+      if (!id || !delta) return;
+
+      btn.disabled = true;
+      try {
+        await apiCall(
+          `/api/products/${id}/stock?quantity=${delta}`,
+          { method: "PATCH" },
+          "Stok yenilənmədi",
+        );
+        toast("Stok yeniləndi", "success");
+        if (typeof loadProducts === "function") await loadProducts();
+        if (typeof loadPOS === "function") await loadPOS();
+        if (typeof loadDashboard === "function") await loadDashboard();
+        setTimeout(enhanceProductsTable, 80);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function enhanceOrdersTable() {
+      const page = document.getElementById("orders");
+      if (!page) return;
+
+      ensureHeaderAction("orders", "Əməliyyat");
+
+      const rows = page.querySelectorAll("tbody tr");
+      rows.forEach((tr) => {
+        if (tr.dataset.deleteEnhanced === "1") return;
+        const id = parseRowId(tr);
+        if (!id) return;
+
+        const td = document.createElement("td");
+        td.innerHTML = `<button class="btn-danger order-delete-btn" data-order-id="${id}">Sil</button>`;
+        tr.appendChild(td);
+        tr.dataset.deleteEnhanced = "1";
+      });
+    }
+
+    async function onDeleteClick(e) {
+      const btn = e.target.closest(".order-delete-btn");
+      if (!btn) return;
+
+      const id = Number(btn.dataset.orderId);
+      if (!id) return;
+      if (!confirm("Bu sifarişi silmək istədiyinizə əminsiniz?")) return;
+
+      btn.disabled = true;
+      try {
+        await apiCall(
+          `/api/orders/${id}`,
+          { method: "DELETE" },
+          "Sifariş silinmədi",
+        );
+        toast("Sifariş silindi, stok geri qaytarıldı", "success");
+        if (typeof loadOrders === "function") await loadOrders();
+        if (typeof loadProducts === "function") await loadProducts();
+        if (typeof loadDashboard === "function") await loadDashboard();
+        setTimeout(enhanceOrdersTable, 80);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function wireDelegation() {
+      document.addEventListener("click", onStockClick);
+      document.addEventListener("click", onDeleteClick);
+    }
+
+    function hookLoaders() {
+      if (typeof loadProducts === "function" && !loadProducts.__patched) {
+        const oldLoadProducts = loadProducts;
+        window.loadProducts = async function (...args) {
+          const r = await oldLoadProducts.apply(this, args);
+          setTimeout(enhanceProductsTable, 60);
+          return r;
+        };
+        window.loadProducts.__patched = true;
+      }
+
+      if (typeof loadOrders === "function" && !loadOrders.__patched) {
+        const oldLoadOrders = loadOrders;
+        window.loadOrders = async function (...args) {
+          const r = await oldLoadOrders.apply(this, args);
+          setTimeout(enhanceOrdersTable, 60);
+          return r;
+        };
+        window.loadOrders.__patched = true;
+      }
+    }
+
+    function bootEnhancements() {
+      hookLoaders();
+      wireDelegation();
+      setTimeout(() => {
+        enhanceProductsTable();
+        enhanceOrdersTable();
+      }, 300);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", bootEnhancements);
+    } else {
+      bootEnhancements();
+    }
+  })();
 });

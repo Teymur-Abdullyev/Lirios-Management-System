@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="az">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lirios Beauty — Xərclər</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon">L</div>
+        <div class="logo-text">Lirios Beauty</div>
+      </div>
+
+      <nav class="nav">
+        <a href="index.html" class="nav-item">
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+            />
+          </svg>
+          <span>Ana Səhifə</span>
+        </a>
+        <a href="index.html" class="nav-item">
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+            />
+          </svg>
+          <span>Satış</span>
+        </a>
+        <a href="index.html" class="nav-item">
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+            />
+          </svg>
+          <span>Məhsul</span>
+        </a>
+        <a href="index.html" class="nav-item">
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+            />
+          </svg>
+          <span>Sifariş</span>
+        </a>
+        <a href="index.html" class="nav-item">
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+            />
+          </svg>
+          <span>Müştəri</span>
+        </a>
+        <a href="expenses.html" class="nav-item active">
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+            />
+          </svg>
+          <span>Xərclər</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="currency">
+          <span>USD: <strong id="usd-rate">—</strong></span>
+          <span>EUR: <strong id="eur-rate">—</strong></span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="page active">
+        <div class="page-header">
+          <h1>Xərclər İdarəetməsi</h1>
+          <div style="display: flex; gap: 10px">
+            <button class="btn-primary" id="btn-new-expense">Yeni Xərc</button>
+            <button class="btn-success" id="btn-export-expenses">
+              Excel Export
+            </button>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-label">Ümumi Xərclər (Cari Ay)</div>
+            <div class="stat-value" id="expense-monthly-total">0 ₼</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Ümumi Xərclər (Bütün Vaxt)</div>
+            <div class="stat-value" id="expense-all-total">0 ₼</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Ən Çox Xərc Kateqoriyası</div>
+            <div class="stat-value" id="expense-top-category">—</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="expenses-toolbar">
+            <input
+              id="expense-search"
+              type="text"
+              class="input"
+              placeholder="Kateqoriya və ya qeyd üzrə axtar..."
+            />
+            <select id="expense-date-filter" class="input">
+              <option value="today">Bu gün</option>
+              <option value="week">Bu həftə</option>
+              <option value="month" selected>Bu ay</option>
+              <option value="all">Hamısı</option>
+            </select>
+          </div>
+
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tarix</th>
+                <th>Kateqoriya</th>
+                <th>Məbləğ</th>
+                <th>Qeyd</th>
+                <th>Əməliyyatlar</th>
+              </tr>
+            </thead>
+            <tbody id="expenses-table-body"></tbody>
+          </table>
+
+          <div class="pagination" id="expenses-pagination"></div>
+        </div>
+      </div>
+    </main>
+
+    <div id="expense-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Yeni Xərc</h3>
+          <button class="modal-close" id="close-expense-modal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form">
+            <select id="expense-category" class="input" required>
+              <option value="">Kateqoriya seçin</option>
+              <option value="COURIER">Kuryer / Logistika</option>
+              <option value="MARKETING">Reklam / SMM</option>
+              <option value="SALARY">Maaş</option>
+              <option value="PACKAGING">Paket / Brending</option>
+              <option value="OTHER">Digər</option>
+            </select>
+            <input
+              type="number"
+              id="expense-amount"
+              class="input"
+              placeholder="Məbləğ (₼)"
+              min="0.01"
+              step="0.01"
+              required
+            />
+            <input
+              type="text"
+              id="expense-description"
+              class="input"
+              placeholder="Qısa təsvir"
+              required
+            />
+            <textarea
+              id="expense-notes"
+              class="input"
+              placeholder="Qeyd"
+              rows="4"
+            ></textarea>
+          </div>
+          <button class="btn-primary btn-large" id="save-expense">
+            Yadda saxla
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="config.js"></script>
+    <script src="expenses.js"></script>
+  </body>
+</html>

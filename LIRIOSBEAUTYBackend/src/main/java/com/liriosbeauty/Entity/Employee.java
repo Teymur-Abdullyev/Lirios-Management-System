@@ -6,8 +6,10 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "employees")
 @Getter
 @Setter
 public class Employee {
@@ -16,17 +18,23 @@ public class Employee {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "full_name", nullable = false)
     private String fullName;
 
     private String phone;
 
-    @Column(nullable = false)
-    private BigDecimal baseSalary;
+    @Transient
+    private BigDecimal baseSalary = BigDecimal.ZERO;
 
     private boolean active = true;
 
-    private LocalDate hiredAt;
+    @Column(name = "hired_at", nullable = false)
+    private LocalDate hiredAt = LocalDate.now();
+
+    private String position;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     // Manual getters if Lombok fails
     public Long getId() { return id; }

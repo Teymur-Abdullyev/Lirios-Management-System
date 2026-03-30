@@ -1,445 +1,795 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="az">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lirios Beauty — CRM Panel</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-</head>
-<body>
-<!-- Sidebar -->
-<aside class="sidebar">
-    <div class="logo">
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
         <div class="logo-icon">L</div>
         <div class="logo-text">Lirios Beauty</div>
-    </div>
+      </div>
 
-    <nav class="nav">
+      <nav class="nav">
         <a href="#" class="nav-item active" data-page="dashboard">
-            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-            </svg>
-            <span>Ana Səhifə</span>
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+            />
+          </svg>
+          <span>Ana Səhifə</span>
         </a>
         <a href="#" class="nav-item" data-page="pos">
-            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
-            </svg>
-            <span>Satış</span>
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+            />
+          </svg>
+          <span>Satış</span>
         </a>
         <a href="#" class="nav-item" data-page="products">
-            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-            </svg>
-            <span>Məhsul</span>
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+            />
+          </svg>
+          <span>Məhsul</span>
         </a>
         <a href="#" class="nav-item" data-page="orders">
-            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-            </svg>
-            <span>Sifariş</span>
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+            />
+          </svg>
+          <span>Sifariş</span>
         </a>
         <a href="#" class="nav-item" data-page="customers">
-            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-            </svg>
-            <span>Müştəri</span>
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+            />
+          </svg>
+          <span>Müştəri</span>
+        </a>
+        <a href="expenses.html" class="nav-item nav-external">
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+            />
+          </svg>
+          <span>Xərclər</span>
         </a>
         <a href="#" class="nav-item" data-page="employees">
-            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
-            </svg>
-            <span>İşçi</span>
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+            />
+          </svg>
+          <span>İşçi</span>
         </a>
         <a href="#" class="nav-item" data-page="debts">
-            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
-            </svg>
-            <span>Borc</span>
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+            />
+          </svg>
+          <span>Borc</span>
         </a>
-    </nav>
+      </nav>
 
-    <div class="sidebar-footer">
+      <div class="sidebar-footer">
         <div class="currency">
-            <span>USD: <strong id="usd-rate">—</strong></span>
-            <span>EUR: <strong id="eur-rate">—</strong></span>
+          <span>USD: <strong id="usd-rate">—</strong></span>
+          <span>EUR: <strong id="eur-rate">—</strong></span>
         </div>
-    </div>
-</aside>
+      </div>
+    </aside>
 
-<!-- Main -->
-<main class="main">
-    <!-- Dashboard -->
-    <div id="dashboard" class="page active">
+    <!-- Main -->
+    <main class="main">
+      <!-- Dashboard -->
+      <div id="dashboard" class="page active">
         <div class="page-header">
-            <h1>Ana Səhifə</h1>
-            <div style="display:flex;gap:8px">
-                <button class="btn-primary" onclick="exportProducts()" title="Məhsulları Excel-ə export et">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    Məhsul
-                </button>
-                <button class="btn-primary" onclick="exportMonthly()" title="Aylıq hesabat">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    Aylıq
-                </button>
-                <button class="btn-primary" onclick="exportBonus()" title="Bonus hesabatı">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    Bonus
-                </button>
-            </div>
+          <h1>Ana Səhifə</h1>
+          <div style="display: flex; gap: 8px">
+            <button
+              class="btn-primary"
+              onclick="exportProducts()"
+              title="Məhsulları Excel-ə export et"
+            >
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                style="margin-right: 4px"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Məhsul
+            </button>
+            <button
+              class="btn-primary"
+              onclick="exportMonthly()"
+              title="Aylıq hesabat"
+            >
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                style="margin-right: 4px"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Aylıq
+            </button>
+            <button
+              class="btn-primary"
+              onclick="exportBonus()"
+              title="Bonus hesabatı"
+            >
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                style="margin-right: 4px"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Bonus
+            </button>
+          </div>
         </div>
 
         <div class="stats">
-            <div class="stat-card">
-                <div class="stat-label">İllik Gelir</div>
-                <div class="stat-value" id="daily-sales">0 ₼</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">İllik Qazanc</div>
-                <div class="stat-value" id="total-products">0 ₼</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Məhsul Sayı</div>
-                <div class="stat-value" id="total-customers">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">İllik Sifariş</div>
-                <div class="stat-value" id="active-employees">0</div>
-            </div>
+          <div class="stat-card">
+            <div class="stat-label">Ümumi Dövriyyə</div>
+            <div class="stat-value" id="total-turnover">0 ₼</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Net Qazanc</div>
+            <div class="stat-value" id="net-profit">0 ₼</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Ümumi Xərclər</div>
+            <div class="stat-value" id="total-expenses">0 ₼</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Ümumi Borclar</div>
+            <div class="stat-value" id="total-debts">0 ₼</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Məhsul Sayı</div>
+            <div class="stat-value" id="total-products">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Ümumi Sifarişlər</div>
+            <div class="stat-value" id="total-orders">0</div>
+          </div>
         </div>
 
         <div class="card">
-            <h2>Son Əməliyyatlar</h2>
-            <table class="table">
-                <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Müştəri</th>
-                    <th>Məbləğ</th>
-                    <th>Status</th>
-                    <th>Tarix</th>
-                </tr>
-                </thead>
-                <tbody id="recent-orders"></tbody>
-            </table>
+          <h2>Son Əməliyyatlar</h2>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Müştəri</th>
+                <th>Məbləğ</th>
+                <th>Status</th>
+                <th>Tarix</th>
+              </tr>
+            </thead>
+            <tbody id="recent-orders"></tbody>
+          </table>
         </div>
-    </div>
+      </div>
 
-    <!-- POS -->
-    <div id="pos" class="page">
+      <!-- POS -->
+      <div id="pos" class="page">
         <div class="page-header">
-            <h1>Satış</h1>
+          <h1>Satış</h1>
         </div>
 
         <div class="pos-grid">
-            <div class="pos-left">
-                <div class="search-box">
-                    <input type="text" id="product-search" placeholder="Barkod və ya məhsul axtar..." class="search-input">
-                    <button class="scan-btn" onclick="openScanner()">
-                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        </svg>
-                    </button>
-                </div>
-                <div class="products-grid" id="products-list"></div>
+          <div class="pos-left">
+            <div class="search-box">
+              <input
+                type="text"
+                id="product-search"
+                placeholder="Barkod və ya məhsul axtar..."
+                class="search-input"
+              />
+              <button class="scan-btn" onclick="openScanner()">
+                <svg
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+              </button>
             </div>
+            <div class="products-grid" id="products-list"></div>
+          </div>
 
-            <div class="pos-right">
-                <div class="cart-card">
-                    <div class="cart-header">
-                        <h3>Səbət</h3>
-                        <button class="btn-text" onclick="clearCart()">Təmizlə</button>
-                    </div>
-                    <div class="cart-items" id="cart-items">
-                        <div class="empty-cart">Səbət boşdur</div>
-                    </div>
-                    <div class="cart-footer">
-                        <input type="text" id="customer-phone" placeholder="Müştəri telefonu" class="input">
-                        <div id="customer-info" class="customer-info"></div>
+          <div class="pos-right">
+            <div class="cart-card">
+              <div class="cart-header">
+                <h3>Səbət</h3>
+                <button class="btn-text" onclick="clearCart()">Təmizlə</button>
+              </div>
+              <div class="cart-items" id="cart-items">
+                <div class="empty-cart">Səbət boşdur</div>
+              </div>
+              <div class="cart-footer">
+                <select id="payment-method" class="input">
+                  <option value="CASH">Nağd</option>
+                  <option value="CARD">Kart</option>
+                  <option value="DEBT">Borclu satış</option>
+                </select>
 
-                        <select id="sale-employee" class="input" style="margin-bottom:12px;">
-                            <option value="">İşçi seç...</option>
-                        </select>
-
-                        <div class="total">
-                            <span>Cəmi:</span>
-                            <strong id="cart-total">0.00 ₼</strong>
-                        </div>
-                        <input type="number" id="paid-amount" placeholder="Ödənilən məbləğ" class="input" step="0.01">
-                        <div class="debt" id="debt-display"></div>
-                        <button class="btn-primary btn-large" onclick="completeSale()">Satışı Tamamla</button>
-                    </div>
+                <div id="debt-customer-section" style="display: none">
+                  <input
+                    type="text"
+                    id="customer-search-input"
+                    placeholder="Müştəri axtar (ad və ya telefon)"
+                    class="input"
+                  />
+                  <select
+                    id="customer-select"
+                    class="input"
+                    size="5"
+                    style="max-height: 180px; overflow-y: auto"
+                  ></select>
+                  <div id="customer-info" class="customer-info"></div>
                 </div>
+
+                <select
+                  id="sale-employee"
+                  class="input"
+                  style="margin-bottom: 12px"
+                >
+                  <option value="">İşçi seç...</option>
+                </select>
+
+                <div class="total">
+                  <span>Cəmi:</span>
+                  <strong id="cart-total">0.00 ₼</strong>
+                </div>
+                <input
+                  type="number"
+                  id="paid-amount"
+                  placeholder="Ödənilən məbləğ"
+                  class="input"
+                  step="0.01"
+                />
+                <div class="debt" id="debt-display"></div>
+                <button class="btn-primary btn-large" onclick="completeSale()">
+                  Satışı Tamamla
+                </button>
+              </div>
             </div>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <!-- Products -->
-    <div id="products" class="page">
+      <!-- Products -->
+      <div id="products" class="page">
         <div class="page-header">
-            <h1>Məhsul</h1>
-            <button class="btn-primary" onclick="openProductModal()">+ Yeni</button>
+          <h1>Məhsul</h1>
+          <button class="btn-primary" onclick="openProductModal()">
+            + Yeni
+          </button>
         </div>
 
         <div class="card">
-            <table class="table">
-                <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Barkod</th>
-                    <th>Ad</th>
-                    <th>Qiymət</th>
-                    <th>Stok</th>
-                    <th>Status</th>
-                </tr>
-                </thead>
-                <tbody id="products-table"></tbody>
-            </table>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Barkod</th>
+                <th>Ad</th>
+                <th>Qiymət</th>
+                <th>Stok</th>
+                <th>Status</th>
+                <th>Əməliyyat</th>
+              </tr>
+            </thead>
+            <tbody id="products-table"></tbody>
+          </table>
         </div>
-    </div>
+      </div>
 
-    <!-- Orders -->
-    <div id="orders" class="page">
+      <!-- Orders -->
+      <div id="orders" class="page">
         <div class="page-header">
-            <h1>Sifariş</h1>
+          <h1>Sifariş</h1>
         </div>
 
         <div class="card">
-            <table class="table">
-                <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Müştəri</th>
-                    <th>İşçi</th>
-                    <th>Cəmi</th>
-                    <th>Ödənildi</th>
-                    <th>Borc</th>
-                    <th>Status</th>
-                    <th>Tarix</th>
-                    <th>Əməliyyat</th>
-                </tr>
-                </thead>
-                <tbody id="orders-table"></tbody>
-            </table>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Müştəri</th>
+                <th>İşçi</th>
+                <th>Cəmi</th>
+                <th>Ödənildi</th>
+                <th>Borc</th>
+                <th>Status</th>
+                <th>Tarix</th>
+                <th>Əməliyyat</th>
+              </tr>
+            </thead>
+            <tbody id="orders-table"></tbody>
+          </table>
         </div>
-    </div>
+      </div>
 
-    <!-- Customers -->
-    <div id="customers" class="page">
+      <!-- Customers -->
+      <div id="customers" class="page">
         <div class="page-header">
-            <h1>Müştəri</h1>
-            <button class="btn-primary" onclick="openCustomerModal()">+ Yeni</button>
+          <h1>Müştəri</h1>
+          <button class="btn-primary" onclick="openCustomerModal()">
+            + Yeni
+          </button>
         </div>
 
         <div class="card">
-            <table class="table">
-                <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Ad Soyad</th>
-                    <th>Telefon</th>
-                    <th>Qeydiyyat</th>
-                </tr>
-                </thead>
-                <tbody id="customers-table"></tbody>
-            </table>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Ad Soyad</th>
+                <th>Telefon</th>
+                <th>Qeydiyyat</th>
+              </tr>
+            </thead>
+            <tbody id="customers-table"></tbody>
+          </table>
         </div>
-    </div>
+      </div>
 
-    <!-- Employees -->
-    <div id="employees" class="page">
+      <!-- Employees -->
+      <div id="employees" class="page">
         <div class="page-header">
-            <h1>İşçi</h1>
-            <button class="btn-primary" onclick="openEmployeeModal()">+ Yeni</button>
+          <h1>İşçi</h1>
+          <button class="btn-primary" onclick="openEmployeeModal()">
+            + Yeni
+          </button>
         </div>
 
         <div class="card">
-            <table class="table">
-                <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Ad Soyad</th>
-                    <th>Telefon</th>
-                    <th>Maaş</th>
-                    <th>İşə başlama</th>
-                    <th>Status</th>
-                    <th>Əməliyyat</th>
-                </tr>
-                </thead>
-                <tbody id="employees-table"></tbody>
-            </table>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Ad Soyad</th>
+                <th>Telefon</th>
+                <th>Maaş</th>
+                <th>İşə başlama</th>
+                <th>Status</th>
+                <th>Əməliyyat</th>
+              </tr>
+            </thead>
+            <tbody id="employees-table"></tbody>
+          </table>
         </div>
-    </div>
+      </div>
 
-    <!-- Debts -->
-    <div id="debts" class="page">
+      <!-- Debts -->
+      <div id="debts" class="page">
         <div class="page-header">
-            <h1>Borc</h1>
+          <h1>Borc</h1>
         </div>
 
         <div class="card">
-            <table class="table">
-                <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Müştəri</th>
-                    <th>Cəmi</th>
-                    <th>Ödənildi</th>
-                    <th>Qalan</th>
-                    <th>Tarix</th>
-                    <th>Əməliyyat</th>
-                </tr>
-                </thead>
-                <tbody id="debts-table"></tbody>
-            </table>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Müştəri</th>
+                <th>Cəmi</th>
+                <th>Ödənildi</th>
+                <th>Qalan</th>
+                <th>Tarix</th>
+                <th>Əməliyyat</th>
+              </tr>
+            </thead>
+            <tbody id="debts-table"></tbody>
+          </table>
         </div>
-    </div>
-</main>
+      </div>
+    </main>
 
-<!-- Product Modal -->
-<div id="product-modal" class="modal">
-    <div class="modal-content">
+    <!-- Product Modal -->
+    <div id="product-modal" class="modal">
+      <div class="modal-content">
         <div class="modal-header">
-            <h3>Yeni Məhsul</h3>
-            <button class="modal-close" onclick="closeModal('product-modal')">×</button>
+          <h3>Yeni Məhsul</h3>
+          <button class="modal-close" onclick="closeModal('product-modal')">
+            ×
+          </button>
         </div>
         <div class="modal-body">
-            <!-- Step 1: Barkod oxu -->
-            <div id="step-barcode">
-                <p style="font-size:14px;color:#64748b;margin-bottom:16px;">Barkodu necə daxil edəcəksən?</p>
-                <div style="display:flex;gap:12px;margin-bottom:20px;">
-                    <button class="btn-primary" onclick="startProductScanner()">📷 Kamera</button>
-                    <button class="btn-primary" onclick="showManualBarcode()">⌨️ Manual</button>
-                </div>
-
-                <div id="scanner-container" style="display:none;margin-bottom:16px;">
-                    <div id="product-scanner"></div>
-                </div>
-
-                <div id="manual-barcode-input" style="display:none;">
-                    <input type="text" id="manual-barcode" placeholder="Barkod daxil et" class="input">
-                    <button class="btn-primary" onclick="checkBarcode()">Yoxla</button>
-                </div>
+          <!-- Step 1: Barkod oxu -->
+          <div id="step-barcode">
+            <p style="font-size: 14px; color: #64748b; margin-bottom: 16px">
+              Barkodu necə daxil edəcəksən?
+            </p>
+            <div style="display: flex; gap: 12px; margin-bottom: 20px">
+              <button class="btn-primary" onclick="startProductScanner()">
+                📷 Kamera
+              </button>
+              <button class="btn-primary" onclick="showManualBarcode()">
+                ⌨️ Manual
+              </button>
             </div>
 
-            <!-- Step 2a: Stok artır (əgər məhsul varsa) -->
-            <div id="step-stock-update" style="display:none;">
-                <div style="background:#fef3c7;padding:16px;border-radius:8px;margin-bottom:16px;">
-                    <p style="font-weight:600;margin-bottom:8px;">⚠️ Bu barkod sistemdədir:</p>
-                    <p id="existing-product-info"></p>
-                </div>
-                <input type="number" id="stock-add-qty" placeholder="Əlavə ediləcək miqdar" class="input" value="1" min="1">
-                <button class="btn-primary" onclick="addStock()">Stok Artır</button>
+            <div
+              id="scanner-container"
+              style="display: none; margin-bottom: 16px"
+            >
+              <div id="product-scanner"></div>
             </div>
 
-            <!-- Step 2b: Yeni məhsul formu (əgər məhsul yoxdursa) -->
-            <div id="step-new-product" style="display:none;">
-                <p style="background:#d1fae5;padding:12px;border-radius:8px;margin-bottom:16px;color:#065f46;font-weight:600;">✓ Yeni məhsul</p>
-                <input type="text" id="new-barcode" readonly class="input" style="background:#f9fafb;">
-                <input type="text" id="new-name" placeholder="Məhsul adı *" class="input">
-                <input type="number" id="new-price" placeholder="Satış qiyməti (AZN) *" class="input" step="0.01">
-
-                <div style="background:#f9fafb;padding:16px;border-radius:8px;margin:12px 0;">
-                    <p style="font-size:13px;color:#64748b;margin-bottom:8px;">Alış qiyməti hesabla:</p>
-                    <div style="display:flex;gap:8px;margin-bottom:8px;">
-                        <input type="number" id="new-foreign" placeholder="Məbləğ" style="width:120px;" class="input" step="0.01">
-                        <select id="new-currency" class="input" style="width:100px;">
-                            <option value="USD">USD</option>
-                            <option value="EUR">EUR</option>
-                            <option value="AZN">AZN</option>
-                        </select>
-                        <button class="btn-primary" onclick="convertCurrency()">Çevir</button>
-                    </div>
-                    <input type="number" id="new-cost" placeholder="Alış qiyməti (AZN)" class="input" step="0.01">
-                </div>
-
-                <input type="text" id="new-category" placeholder="Kateqoriya" class="input">
-                <input type="number" id="new-stock" placeholder="Stok miqdarı *" class="input" min="1">
-                <button class="btn-primary" onclick="saveNewProduct()">Saxla</button>
+            <div id="manual-barcode-input" style="display: none">
+              <input
+                type="text"
+                id="manual-barcode"
+                placeholder="Barkod daxil et"
+                class="input"
+              />
+              <button class="btn-primary" onclick="checkBarcode()">
+                Yoxla
+              </button>
             </div>
+          </div>
+
+          <!-- Step 2a: Stok artır (əgər məhsul varsa) -->
+          <div id="step-stock-update" style="display: none">
+            <div
+              style="
+                background: #fef3c7;
+                padding: 16px;
+                border-radius: 8px;
+                margin-bottom: 16px;
+              "
+            >
+              <p style="font-weight: 600; margin-bottom: 8px">
+                ⚠️ Bu barkod sistemdədir:
+              </p>
+              <p id="existing-product-info"></p>
+            </div>
+            <input
+              type="number"
+              id="stock-add-qty"
+              placeholder="Əlavə ediləcək miqdar"
+              class="input"
+              value="1"
+              min="1"
+            />
+            <button class="btn-primary" onclick="addStock()">Stok Artır</button>
+          </div>
+
+          <!-- Step 2b: Yeni məhsul formu (əgər məhsul yoxdursa) -->
+          <div id="step-new-product" style="display: none">
+            <p
+              style="
+                background: #d1fae5;
+                padding: 12px;
+                border-radius: 8px;
+                margin-bottom: 16px;
+                color: #065f46;
+                font-weight: 600;
+              "
+            >
+              ✓ Yeni məhsul
+            </p>
+            <input
+              type="text"
+              id="new-barcode"
+              readonly
+              class="input"
+              style="background: #f9fafb"
+            />
+            <input
+              type="text"
+              id="new-name"
+              placeholder="Məhsul adı *"
+              class="input"
+            />
+            <input
+              type="number"
+              id="new-price"
+              placeholder="Satış qiyməti (AZN) *"
+              class="input"
+              step="0.01"
+            />
+
+            <div
+              style="
+                background: #f9fafb;
+                padding: 16px;
+                border-radius: 8px;
+                margin: 12px 0;
+              "
+            >
+              <p style="font-size: 13px; color: #64748b; margin-bottom: 8px">
+                Alış qiyməti hesabla:
+              </p>
+              <div style="display: flex; gap: 8px; margin-bottom: 8px">
+                <input
+                  type="number"
+                  id="new-foreign"
+                  placeholder="Məbləğ"
+                  style="width: 120px"
+                  class="input"
+                  step="0.01"
+                />
+                <select id="new-currency" class="input" style="width: 100px">
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="AZN">AZN</option>
+                </select>
+                <button class="btn-primary" onclick="convertCurrency()">
+                  Çevir
+                </button>
+              </div>
+              <input
+                type="number"
+                id="new-cost"
+                placeholder="Alış qiyməti (AZN)"
+                class="input"
+                step="0.01"
+              />
+            </div>
+
+            <input
+              type="text"
+              id="new-category"
+              placeholder="Kateqoriya"
+              class="input"
+            />
+            <input
+              type="number"
+              id="new-stock"
+              placeholder="Stok miqdarı *"
+              class="input"
+              min="1"
+            />
+            <button class="btn-primary" onclick="saveNewProduct()">
+              Saxla
+            </button>
+          </div>
         </div>
+      </div>
     </div>
-</div>
 
-<!-- Customer Modal -->
-<div id="customer-modal" class="modal">
-    <div class="modal-content">
+    <!-- Customer Modal -->
+    <div id="customer-modal" class="modal">
+      <div class="modal-content">
         <div class="modal-header">
-            <h3>Yeni Müştəri</h3>
-            <button class="modal-close" onclick="closeModal('customer-modal')">×</button>
+          <h3>Yeni Müştəri</h3>
+          <button class="modal-close" onclick="closeModal('customer-modal')">
+            ×
+          </button>
         </div>
         <div class="modal-body">
-            <div class="form">
-                <input type="text" id="c-name" placeholder="Ad Soyad *" class="input">
-                <input type="tel" id="c-phone" placeholder="Telefon *" class="input">
-            </div>
-            <button class="btn-primary" onclick="saveCustomer()">Saxla</button>
+          <div class="form">
+            <input
+              type="text"
+              id="c-name"
+              placeholder="Ad Soyad *"
+              class="input"
+            />
+            <input
+              type="tel"
+              id="c-phone"
+              placeholder="Telefon *"
+              class="input"
+            />
+          </div>
+          <button class="btn-primary" onclick="saveCustomer()">Saxla</button>
         </div>
+      </div>
     </div>
-</div>
 
-<!-- Employee Modal -->
-<div id="employee-modal" class="modal">
-    <div class="modal-content">
+    <!-- Employee Modal -->
+    <div id="employee-modal" class="modal">
+      <div class="modal-content">
         <div class="modal-header">
-            <h3>Yeni İşçi</h3>
-            <button class="modal-close" onclick="closeModal('employee-modal')">×</button>
+          <h3>Yeni İşçi</h3>
+          <button class="modal-close" onclick="closeModal('employee-modal')">
+            ×
+          </button>
         </div>
         <div class="modal-body">
-            <div class="form">
-                <input type="text" id="emp-name" placeholder="Ad Soyad *" class="input">
-                <input type="tel" id="emp-phone" placeholder="Telefon" class="input">
-                <input type="number" id="emp-salary" placeholder="Maaş (AZN) *" class="input" step="0.01">
-                <input type="date" id="emp-hired" class="input">
-            </div>
-            <button class="btn-primary" onclick="saveEmployee()">Saxla</button>
+          <div class="form">
+            <input
+              type="text"
+              id="emp-name"
+              placeholder="Ad Soyad *"
+              class="input"
+            />
+            <input
+              type="tel"
+              id="emp-phone"
+              placeholder="Telefon"
+              class="input"
+            />
+            <input
+              type="number"
+              id="emp-salary"
+              placeholder="Maaş (AZN) *"
+              class="input"
+              step="0.01"
+            />
+            <input type="date" id="emp-hired" class="input" />
+          </div>
+          <button class="btn-primary" onclick="saveEmployee()">Saxla</button>
         </div>
+      </div>
     </div>
-</div>
 
-<!-- Scanner Modal (POS) -->
-<div id="scanner-modal" class="modal">
-    <div class="modal-content scanner-modal">
+    <!-- Scanner Modal (POS) -->
+    <div id="scanner-modal" class="modal">
+      <div class="modal-content scanner-modal">
         <div class="modal-header">
-            <h3>Barkod Skan</h3>
-            <button class="modal-close" onclick="closeScanner()">×</button>
+          <h3>Barkod Skan</h3>
+          <button class="modal-close" onclick="closeScanner()">×</button>
         </div>
         <div class="modal-body">
-            <div id="pos-scanner-container"></div>
-            <div id="scanner-result" class="scanner-result"></div>
+          <div id="pos-scanner-container"></div>
+          <div id="scanner-result" class="scanner-result"></div>
         </div>
+      </div>
     </div>
-</div>
 
-<!-- Return/Cancel Modal -->
-<div id="return-modal" class="modal">
-    <div class="modal-content">
+    <!-- Return/Cancel Modal -->
+    <div id="return-modal" class="modal">
+      <div class="modal-content">
         <div class="modal-header">
-            <h3>Sifariş İadəsi / Ləğvi</h3>
-            <button class="modal-close" onclick="closeModal('return-modal')">×</button>
+          <h3>Sifariş İadəsi / Ləğvi</h3>
+          <button class="modal-close" onclick="closeModal('return-modal')">
+            ×
+          </button>
         </div>
         <div class="modal-body">
-            <p style="margin-bottom:16px;color:#64748b;">Bu sifarişi ləğv etmək istədiyinizə əminsiniz?</p>
-            <div style="display:flex;gap:12px;">
-                <button class="btn-primary" onclick="confirmReturn()" style="background:#ef4444;flex:1;">Bəli, Ləğv et</button>
-                <button class="btn-text" onclick="closeModal('return-modal')" style="flex:1;">Xeyr</button>
-            </div>
+          <p style="margin-bottom: 16px; color: #64748b">
+            Bu sifarişi ləğv etmək istədiyinizə əminsiniz?
+          </p>
+          <div style="display: flex; gap: 12px">
+            <button
+              class="btn-primary"
+              onclick="confirmReturn()"
+              style="background: #ef4444; flex: 1"
+            >
+              Bəli, Ləğv et
+            </button>
+            <button
+              class="btn-text"
+              onclick="closeModal('return-modal')"
+              style="flex: 1"
+            >
+              Xeyr
+            </button>
+          </div>
         </div>
+      </div>
     </div>
-</div>
 
-<!-- Toast -->
-<div id="toast" class="toast"></div>
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
 
-<script src="app.js"></script>
-</body>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+  </body>
 </html>

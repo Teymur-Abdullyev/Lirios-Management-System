@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -36,9 +37,50 @@ public class Expense {
     @Column(nullable = false)
     private ExpenseCategory category;
 
+    @NotNull
+    @Column(name = "exchange_rate", nullable = false, precision = 10, scale = 4)
+    private BigDecimal exchangeRate = new BigDecimal("1.0000");
+
+    @NotNull
+    @Column(name = "expense_date", nullable = false)
+    private LocalDate expenseDate = LocalDate.now();
+
+    @NotBlank
+    @Column(nullable = false, length = 10)
+    private String currency = "AZN";
+
+    @NotBlank
+    @Size(max = 200)
+    @Column(nullable = false, length = 200)
+    private String title;
+
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Size(max = 500, message = "Qeyd 500 simvoldan çox ola bilməz")
     private String notes;
+
+    @Size(max = 500)
+    @Column(name = "note")
+    private String note;
+
+    @PrePersist
+    @PreUpdate
+    private void syncLegacyFields() {
+        if (title == null || title.isBlank()) {
+            title = description;
+        }
+        if (expenseDate == null) {
+            expenseDate = LocalDate.now();
+        }
+        if (currency == null || currency.isBlank()) {
+            currency = "AZN";
+        }
+        if (exchangeRate == null) {
+            exchangeRate = new BigDecimal("1.0000");
+        }
+        if ((note == null || note.isBlank()) && notes != null && !notes.isBlank()) {
+            note = notes;
+        }
+    }
 }

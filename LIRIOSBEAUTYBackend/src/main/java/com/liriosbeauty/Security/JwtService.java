@@ -2,13 +2,13 @@ package com.liriosbeauty.Security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,11 +17,14 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    // SECRET KEY - change this to a secure random key in production
-    private static final String SECRET_KEY = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+    @Value("${jwt.secret}")
+    private String secretKey;
 
-    // Token validity: 24 hours
-    private static final long JWT_EXPIRATION = 1000 * 60 * 60 * 24;
+    @Value("${jwt.access-expiration:86400000}")
+    private long accessExpirationMs;
+
+    @Value("${jwt.refresh-expiration:604800000}")
+    private long refreshExpirationMs;
 
     // Extract username from token
     public String extractUsername(String token) {
@@ -36,12 +39,28 @@ public class JwtService {
 
     // Generate token for user
     public String generateToken(UserDetails userDetails) {
-        return generateToken(new HashMap<>(), userDetails);
+        return generateAccessToken(userDetails);
+    }
+
+    public String generateAccessToken(UserDetails userDetails) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("token_type", "access");
+        return generateToken(claims, userDetails, accessExpirationMs);
+    }
+
+    public String generateRefreshToken(UserDetails userDetails) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("token_type", "refresh");
+        return generateToken(claims, userDetails, refreshExpirationMs);
     }
 
     // Generate token with extra claims
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
-        return buildToken(extraClaims, userDetails, JWT_EXPIRATION);
+        return generateToken(extraClaims, userDetails, accessExpirationMs);
+    }
+
+    public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails, long expirationMs) {
+        return buildToken(extraClaims, userDetails, expirationMs);
     }
 
     // Build JWT token
@@ -62,8 +81,19 @@ public class JwtService {
 
     // Validate token
     public boolean isTokenValid(String token, UserDetails userDetails) {
+        return isTokenValid(token, userDetails, "access");
+    }
+
+    public boolean isTokenValid(String token, UserDetails userDetails, String expectedType) {
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        final String tokenType = extractClaim(token, claims -> claims.get("token_type", String.class));
+        return (username.equals(userDetails.getUsername()))
+                && !isTokenExpired(token)
+                && expectedType.equals(tokenType);
+    }
+
+    public long getAccessExpirationMs() {
+        return accessExpirationMs;
     }
 
     // Check if token is expired
@@ -88,7 +118,7 @@ public class JwtService {
 
     // Get signing key
     private SecretKey getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
+        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }

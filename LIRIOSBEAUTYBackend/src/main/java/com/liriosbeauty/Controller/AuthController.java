@@ -1,20 +1,20 @@
 package com.liriosbeauty.Controller;
 
-import com.liriosbeauty.DTO.AuthRequestDTO;
-import com.liriosbeauty.DTO.AuthResponseDTO;
-import com.liriosbeauty.DTO.RegisterRequestDTO;
+import com.liriosbeauty.DTO.*;
 import com.liriosbeauty.Entity.User;
-import com.liriosbeauty.Entity.UserRole;
 import com.liriosbeauty.Repository.UserRepository;
+import com.liriosbeauty.Service.UserService;
 import com.liriosbeauty.Security.JwtService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -22,58 +22,75 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
+    private final UserRepository userRepository;
+    private final UserService userService;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequestDTO request) {
-        
-        if (userRepository.existsByUsername(request.getUsername())) {
-            return ResponseEntity.badRequest().body("İstifadəçi adı artıq mövcuddur!");
-        }
-
-        User user = User.builder()
-                .username(request.getUsername())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .fullName(request.getFullName())
-                .role(UserRole.ADMIN)
-                .active(true)
-                .build();
-
-        userRepository.save(user);
-
-        String jwtToken = jwtService.generateToken(user);
-        
-        return ResponseEntity.ok(new AuthResponseDTO(jwtToken, user.getFullName(), user.getRole().name()));
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserDTO> register(@Valid @RequestBody RegisterRequest request) {
+        User user = userService.register(request);
+        return ResponseEntity.ok(userService.toDto(user));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody AuthRequestDTO request) {
-        
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            request.getUsername(),
-                            request.getPassword()
-                    )
+                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
             );
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("İstifadəçi adı və ya şifrə səhvdir!");
+            return ResponseEntity.badRequest().body("Invalid username or password");
         }
 
-        UserDetails user = userDetailsService.loadUserByUsername(request.getUsername());
-        String jwtToken = jwtService.generateToken(user);
+        UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
+        User user = userRepository.findByUsername(request.getUsername()).orElseThrow();
 
-        User userEntity = userRepository.findByUsername(request.getUsername())
-                .orElseThrow();
+        String accessToken = jwtService.generateAccessToken(userDetails);
+        String refreshToken = jwtService.generateRefreshToken(userDetails);
 
-        return ResponseEntity.ok(new AuthResponseDTO(
-                jwtToken, 
-                userEntity.getFullName(), 
-                userEntity.getRole().name()
-        ));
+        return ResponseEntity.ok(LoginResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .expiresIn(jwtService.getAccessExpirationMs() / 1000)
+                .user(userService.toDto(user))
+                .build());
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(@Valid @RequestBody RefreshRequest request) {
+        String refreshToken = request.getRefreshToken();
+        String username;
+        try {
+            username = jwtService.extractUsername(refreshToken);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Invalid refresh token");
+        }
+
+        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        if (!jwtService.isTokenValid(refreshToken, userDetails, "refresh")) {
+            return ResponseEntity.badRequest().body("Refresh token is expired or invalid");
+        }
+
+        User user = userRepository.findByUsername(username).orElseThrow();
+        String accessToken = jwtService.generateAccessToken(userDetails);
+
+        return ResponseEntity.ok(LoginResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .expiresIn(jwtService.getAccessExpirationMs() / 1000)
+                .user(userService.toDto(user))
+                .build());
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserDTO> me() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User user = (User) authentication.getPrincipal();
+        return ResponseEntity.ok(userService.toDto(user));
     }
 }

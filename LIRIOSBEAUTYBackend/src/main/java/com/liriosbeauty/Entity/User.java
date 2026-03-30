@@ -31,15 +31,27 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false)
+    @Column(name = "full_name", nullable = false)
     private String fullName;
+
+    @Column(unique = true, nullable = false)
+    private String email;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private UserRole role = UserRole.ADMIN;
 
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
     private boolean active = true;
 
+    @OneToOne
+    @JoinColumn(name = "employee_id", unique = true)
+    private Employee employee;
+
+    @Column(name = "created_at", nullable = false)
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Override

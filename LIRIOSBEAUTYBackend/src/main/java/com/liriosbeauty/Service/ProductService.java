@@ -30,11 +30,19 @@ public class ProductService {
         return productRepository.findByBarcode(barcode);
     }
 
+    public Optional<ProductDTO> findByBarcodeDto(String barcode) {
+        return findByBarcode(barcode).map(this::toDTO);
+    }
+
     public Product save(Product product) {
         if (productRepository.existsByBarcode(product.getBarcode())) {
             throw new RuntimeException("Bu barcode artıq mövcuddur: " + product.getBarcode());
         }
         return productRepository.save(product);
+    }
+
+    public ProductDTO saveDto(Product product) {
+        return toDTO(save(product));
     }
 
     public Product incrementStock(String barcode, int qty) {
@@ -52,6 +60,10 @@ public class ProductService {
         stockMovementRepository.save(movement);
 
         return product;
+    }
+
+    public ProductDTO incrementStockDto(String barcode, int qty) {
+        return toDTO(incrementStock(barcode, qty));
     }
 
     public Product adjustStock(Long id, int change, String reason, String note) {
@@ -86,6 +98,10 @@ public class ProductService {
         return productRepository.save(product);
     }
 
+    public ProductDTO updateDto(Long id, Product updated) {
+        return toDTO(update(id, updated));
+    }
+
     public void delete(Long id) {
         productRepository.deleteById(id);
     }
@@ -101,5 +117,9 @@ public class ProductService {
         dto.setStockQuantity(p.getStockQty());
         dto.setCategory(p.getCategory());
         return dto;
+    }
+    public ProductDTO adjustStockDto(Long id, int change, String reason, String note) {
+        Product p = adjustStock(id, change, reason, note);
+        return toDTO(p);
     }
 }

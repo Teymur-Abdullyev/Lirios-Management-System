@@ -33,7 +33,7 @@ public class Product {
 
     @NotNull(message = "Maya dəyəri mütləqdir")
     @DecimalMin(value = "0.00", message = "Maya dəyəri mənfi ola bilməz")
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(name = "price", insertable = false, updatable = false)
     private BigDecimal costPrice;
 
     @Min(value = 0, message = "Stok mənfi ola bilməz")
@@ -43,26 +43,32 @@ public class Product {
     @Size(max = 100, message = "Kateqoriya 100 simvoldan çox ola bilməz")
     private String category;
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // SOFT DELETE
-    @Column(nullable = false)
-    private boolean deleted = false;
-
+    // Legacy schema stores deletion moment only.
+    @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
     @Transient
     public ProductStatus getStatus() {
-        if (deleted) return ProductStatus.DELETED;
+        if (isDeleted()) return ProductStatus.DELETED;
         return (stockQty == null || stockQty == 0)
                 ? ProductStatus.OUT_OF_STOCK
                 : ProductStatus.AVAILABLE;
     }
 
+    @Transient
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.deletedAt = deleted ? LocalDateTime.now() : null;
+    }
+
     // Soft delete helper
     public void softDelete() {
-        this.deleted = true;
         this.deletedAt = LocalDateTime.now();
     }
 }

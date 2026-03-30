@@ -1,5 +1,6 @@
 package com.liriosbeauty.Controller;
 
+import com.liriosbeauty.DTO.OrderDTO;
 import com.liriosbeauty.Entity.*;
 import com.liriosbeauty.Repository.CustomerRepository;
 import com.liriosbeauty.Repository.EmployeeRepository;
@@ -9,6 +10,8 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +24,7 @@ import java.util.Map;
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
 @Validated
+@CrossOrigin(origins = "*")
 public class OrderController {
 
     private final OrderService orderService;
@@ -29,30 +33,38 @@ public class OrderController {
     private final ProductRepository productRepository;
 
     @GetMapping
-    public List<Order> getAll() {
-        return orderService.getAll();
+    public List<OrderDTO> getAll() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof User user
+                && user.getRole() == UserRole.SELLER) {
+            if (user.getEmployee() == null) {
+                return List.of();
+            }
+            return orderService.getByEmployeeDto(user.getEmployee().getId());
+        }
+        return orderService.getAllDto();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Order> getById(@PathVariable Long id) {
-        return orderService.findById(id)
+    public ResponseEntity<OrderDTO> getById(@PathVariable Long id) {
+        return orderService.findByIdDto(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/customer/{customerId}")
-    public List<Order> getByCustomer(@PathVariable Long customerId) {
-        return orderService.getByCustomer(customerId);
+    public List<OrderDTO> getByCustomer(@PathVariable Long customerId) {
+        return orderService.getByCustomerDto(customerId);
     }
 
     @GetMapping("/debts")
-    public List<Order> getDebts() {
-        return orderService.getDebts();
+    public List<OrderDTO> getDebts() {
+        return orderService.getDebtsDto();
     }
 
     @GetMapping("/partials")
-    public List<Order> getPartials() {
-        return orderService.getPartials();
+    public List<OrderDTO> getPartials() {
+        return orderService.getPartialsDto();
     }
 
     @GetMapping("/total-debt")
@@ -61,15 +73,21 @@ public class OrderController {
     }
 
     @PatchMapping("/{id}/pay")
-    public ResponseEntity<Order> payDebt(
+    public ResponseEntity<OrderDTO> payDebt(
             @PathVariable Long id,
             @RequestParam @NotNull @DecimalMin("0.01") BigDecimal amount) {
-        return ResponseEntity.ok(orderService.payDebt(id, amount));
+        return ResponseEntity.ok(orderService.payDebtDto(id, amount));
     }
 
     @PatchMapping("/{id}/cancel")
-    public ResponseEntity<Order> cancelOrder(@PathVariable Long id) {
-        return ResponseEntity.ok(orderService.cancelOrder(id));
+    public ResponseEntity<OrderDTO> cancelOrder(@PathVariable Long id) {
+        return ResponseEntity.ok(orderService.cancelOrderDto(id));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteOrder(@PathVariable Long id) {
+        orderService.deleteOrderAndRestoreStock(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping
@@ -82,20 +100,31 @@ public class OrderController {
 
         Order order = new Order();
 
-        // Employee (mütləq)
-        if (!body.containsKey("employeeId") || body.get("employeeId") == null) {
-            return ResponseEntity.badRequest().body("İşçi seçməlisiniz!");
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User currentUser = null;
+        if (authentication != null && authentication.getPrincipal() instanceof User user) {
+            currentUser = user;
         }
 
-        Long employeeId = Long.valueOf(body.get("employeeId").toString());
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("İşçi tapılmadı: " + employeeId));
-
-        if (!employee.isActive()) {
-            return ResponseEntity.badRequest().body("Seçilən işçi aktiv deyil!");
+        if (currentUser != null && currentUser.getRole() == UserRole.SELLER) {
+            if (currentUser.getEmployee() == null) {
+                return ResponseEntity.badRequest().body("Seller hesabı employee ilə əlaqələndirilməlidir!");
+            }
+            order.setEmployee(currentUser.getEmployee());
         }
 
-        order.setEmployee(employee);
+        // Employee (optional)
+        if (order.getEmployee() == null && body.containsKey("employeeId") && body.get("employeeId") != null) {
+            Long employeeId = Long.valueOf(body.get("employeeId").toString());
+            Employee employee = employeeRepository.findById(employeeId)
+                    .orElseThrow(() -> new RuntimeException("İşçi tapılmadı: " + employeeId));
+
+            if (!employee.isActive()) {
+                return ResponseEntity.badRequest().body("Seçilən işçi aktiv deyil!");
+            }
+
+            order.setEmployee(employee);
+        }
 
         // Customer (optional - yalnız borc olduqda lazımdır)
         if (body.containsKey("customerId") && body.get("customerId") != null) {
@@ -111,10 +140,17 @@ public class OrderController {
         }
 
         // Items
-        List<Map<String, Object>> itemsData = (List<Map<String, Object>>) body.get("items");
+        List<?> itemsData = (List<?>) body.get("items");
 
         List<OrderItem> items = new ArrayList<>();
-        for (Map<String, Object> itemData : itemsData) {
+        for (Object rawItem : itemsData) {
+            if (!(rawItem instanceof Map<?, ?> rawMap)) {
+                return ResponseEntity.badRequest().body("Məhsul məlumatı düzgün formatda deyil!");
+            }
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> itemData = (Map<String, Object>) rawMap;
+
             if (!itemData.containsKey("productId") || !itemData.containsKey("quantity")) {
                 return ResponseEntity.badRequest().body("Məhsul məlumatı tam deyil!");
             }
@@ -136,6 +172,6 @@ public class OrderController {
             items.add(item);
         }
 
-        return ResponseEntity.ok(orderService.createOrder(order, items, paidAmount));
+        return ResponseEntity.ok(orderService.createOrderDto(order, items, paidAmount));
     }
 }

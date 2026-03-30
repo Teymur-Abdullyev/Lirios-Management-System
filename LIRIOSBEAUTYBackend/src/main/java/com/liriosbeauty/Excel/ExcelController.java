@@ -20,6 +20,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/export")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class ExcelController {
 
     private final ExcelExportService excelExportService;
