@@ -446,13 +446,22 @@ async function loadDashboard() {
 
     const activeOrders = orders.filter((o) => o.status !== "CANCELLED");
 
+    // Ümumi dövriyyə: stokda olan məhsulların satış dəyəri cəmi
+    const inventoryTurnover = products.reduce((sum, p) => {
+      const qty = parseFloat(p.stockQuantity ?? p.stockQty ?? 0) || 0;
+      const price = parseFloat(p.sellingPrice ?? p.price ?? 0) || 0;
+      return sum + qty * price;
+    }, 0);
+
     const turnover =
-      summary?.totalRevenue != null
-        ? parseFloat(summary.totalRevenue)
-        : activeOrders.reduce(
-            (sum, o) => sum + parseFloat(o.totalAmount || 0),
-            0,
-          );
+      inventoryTurnover > 0
+        ? inventoryTurnover
+        : summary?.totalRevenue != null
+          ? parseFloat(summary.totalRevenue)
+          : activeOrders.reduce(
+              (sum, o) => sum + parseFloat(o.totalAmount || 0),
+              0,
+            );
     const expenses =
       summary?.totalExpenses != null ? parseFloat(summary.totalExpenses) : 0;
     const purchaseCosts =
@@ -961,6 +970,20 @@ function resetProductModal() {
   document.getElementById("step-new-product").style.display = "none";
   document.getElementById("scanner-container").style.display = "none";
   document.getElementById("manual-barcode-input").style.display = "none";
+
+  // Köhnə input dəyərlərini təmizlə
+  document.getElementById("manual-barcode").value = "";
+  document.getElementById("stock-add-qty").value = "1";
+  document.getElementById("new-barcode").value = "";
+  document.getElementById("new-name").value = "";
+  document.getElementById("new-price").value = "";
+  document.getElementById("new-foreign").value = "";
+  document.getElementById("new-currency").value = "USD";
+  document.getElementById("new-cost").value = "";
+  document.getElementById("new-category").value = "";
+  document.getElementById("new-stock").value = "";
+  document.getElementById("existing-product-info").textContent = "";
+
   stopProductScanner();
 }
 
@@ -1816,6 +1839,7 @@ async function apiRequest(path, options = {}, fallback = "Sorğu uğursuz oldu")
 }
 function closeModal(id) {
   if (id === "product-modal") {
+    resetProductModal();
     stopProductScanner();
   }
   document.getElementById(id).classList.remove("active");
