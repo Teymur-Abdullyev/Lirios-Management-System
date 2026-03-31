@@ -1,7 +1,6 @@
 package com.liriosbeauty.Excel;
 
 import com.liriosbeauty.DTO.EmployeeBonusDTO;
-import com.liriosbeauty.DTO.MonthlyReportDTO;
 import com.liriosbeauty.Entity.*;
 import com.liriosbeauty.Repository.*;
 import com.liriosbeauty.Service.BonusService;
@@ -14,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 @Service
@@ -21,7 +21,6 @@ import java.util.List;
 public class ExcelExportService {
 
     private final ProductRepository productRepository;
-    private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final ExpenseService expenseService;
     private final BonusService bonusService;
@@ -41,15 +40,15 @@ public class ExcelExportService {
         }
 
         // Data
-        List<Product> products = productRepository.findAll();
+        List<Product> products = productRepository.findByDeletedAtIsNull();
         int rowNum = 1;
         for (Product p : products) {
             Row row = sheet.createRow(rowNum++);
             row.createCell(0).setCellValue(p.getId());
             row.createCell(1).setCellValue(p.getBarcode() != null ? p.getBarcode() : "—");
             row.createCell(2).setCellValue(p.getName());
-            row.createCell(3).setCellValue(p.getPrice().doubleValue());
-            row.createCell(4).setCellValue(p.getCostPrice().doubleValue());
+            row.createCell(3).setCellValue(safeMoney(p.getPrice()).doubleValue());
+            row.createCell(4).setCellValue(safeMoney(p.getCostPrice()).doubleValue());
             row.createCell(5).setCellValue(p.getStockQty());
             row.createCell(6).setCellValue(p.getCategory() != null ? p.getCategory() : "—");
             row.createCell(7).setCellValue(p.getStatus().toString());
@@ -61,6 +60,8 @@ public class ExcelExportService {
 
     // ─── 2. Aylıq hesabat ─────────────────────────────────
     public byte[] exportMonthlyReport(int year, int month) throws IOException {
+        validateMonth(month);
+
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("Aylıq hesabat");
 
@@ -68,11 +69,11 @@ public class ExcelExportService {
         List<OrderItem> items = orderItemRepository.findByYearAndMonth(year, month);
 
         BigDecimal revenue = items.stream()
-                .map(i -> i.getUnitPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
+            .map(this::lineRevenue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal costOfGoods = items.stream()
-                .map(i -> i.getProduct().getCostPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
+            .map(this::lineCost)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal grossProfit  = revenue.subtract(costOfGoods);
@@ -105,6 +106,8 @@ public class ExcelExportService {
 
     // ─── 3. Rüblük bonus hesabatı ─────────────────────────
     public byte[] exportBonusReport(int year, int quarter) throws IOException {
+        validateQuarter(quarter);
+
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("Bonus hesabatı");
 
@@ -121,9 +124,9 @@ public class ExcelExportService {
         for (EmployeeBonusDTO b : bonuses) {
             Row row = sheet.createRow(rowNum++);
             row.createCell(0).setCellValue(b.getEmployeeName());
-            row.createCell(1).setCellValue(b.getTotalSales().doubleValue());
-            row.createCell(2).setCellValue(b.getBonusPercent().doubleValue());
-            row.createCell(3).setCellValue(b.getBonusAmount().doubleValue());
+            row.createCell(1).setCellValue(safeMoney(b.getTotalSales()).doubleValue());
+            row.createCell(2).setCellValue(safeMoney(b.getBonusPercent()).doubleValue());
+            row.createCell(3).setCellValue(safeMoney(b.getBonusAmount()).doubleValue());
         }
 
         autoSize(sheet, cols.length);
@@ -160,5 +163,36 @@ public class ExcelExportService {
         workbook.write(out);
         workbook.close();
         return out.toByteArray();
+    }
+
+    private BigDecimal lineRevenue(OrderItem item) {
+        BigDecimal unitPrice = safeMoney(item.getUnitPrice());
+        BigDecimal quantity = BigDecimal.valueOf(item.getQuantity() == null ? 0 : item.getQuantity());
+        return unitPrice.multiply(quantity).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal lineCost(OrderItem item) {
+        BigDecimal costPrice = BigDecimal.ZERO;
+        if (item.getProduct() != null) {
+            costPrice = safeMoney(item.getProduct().getCostPrice());
+        }
+        BigDecimal quantity = BigDecimal.valueOf(item.getQuantity() == null ? 0 : item.getQuantity());
+        return costPrice.multiply(quantity).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal safeMoney(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private void validateQuarter(int quarter) {
+        if (quarter < 1 || quarter > 4) {
+            throw new RuntimeException("Rüb 1-4 aralığında olmalıdır");
+        }
+    }
+
+    private void validateMonth(int month) {
+        if (month < 1 || month > 12) {
+            throw new RuntimeException("Ay 1-12 aralığında olmalıdır");
+        }
     }
 }

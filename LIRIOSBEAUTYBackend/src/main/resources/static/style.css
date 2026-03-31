@@ -143,10 +143,12 @@ body {
   flex: 1;
   padding: 32px;
   min-height: 100vh;
+  overflow: visible;
 }
 
 .page {
   display: none;
+  overflow: visible;
 }
 
 .page.active {
@@ -435,6 +437,7 @@ body {
   height: fit-content;
   position: sticky;
   top: 32px;
+  overflow: visible;
 }
 
 .cart-header {
@@ -519,6 +522,7 @@ body {
 .cart-footer {
   padding: 20px;
   border-top: 1px solid var(--border);
+  overflow: visible;
 }
 
 .input {
@@ -547,6 +551,7 @@ body {
   background: #f8fbff;
   padding: 10px;
   margin-bottom: 12px;
+  overflow: visible;
 }
 
 #customer-search-input {

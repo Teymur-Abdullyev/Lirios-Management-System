@@ -33,8 +33,8 @@ public class Product {
 
     @NotNull(message = "Maya dəyəri mütləqdir")
     @DecimalMin(value = "0.00", message = "Maya dəyəri mənfi ola bilməz")
-    @Column(name = "price", insertable = false, updatable = false)
-    private BigDecimal costPrice;
+    @Column(name = "cost_price", precision = 10, scale = 2)
+    private BigDecimal costPrice = BigDecimal.ZERO;
 
     @Min(value = 0, message = "Stok mənfi ola bilməz")
     @Column(nullable = false)
@@ -43,8 +43,15 @@ public class Product {
     @Size(max = 100, message = "Kateqoriya 100 simvoldan çox ola bilməz")
     private String category;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ProductStatus status = ProductStatus.AVAILABLE;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt = LocalDateTime.now();
 
     // Legacy schema stores deletion moment only.
     @Column(name = "deleted_at")
@@ -52,10 +59,7 @@ public class Product {
 
     @Transient
     public ProductStatus getStatus() {
-        if (isDeleted()) return ProductStatus.DELETED;
-        return (stockQty == null || stockQty == 0)
-                ? ProductStatus.OUT_OF_STOCK
-                : ProductStatus.AVAILABLE;
+        return deriveStatus();
     }
 
     @Transient
@@ -65,10 +69,37 @@ public class Product {
 
     public void setDeleted(boolean deleted) {
         this.deletedAt = deleted ? LocalDateTime.now() : null;
+        this.status = deriveStatus();
     }
 
     // Soft delete helper
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();
+        this.status = ProductStatus.DELETED;
+    }
+
+    private ProductStatus deriveStatus() {
+        if (isDeleted()) return ProductStatus.DELETED;
+        return (stockQty == null || stockQty == 0)
+                ? ProductStatus.OUT_OF_STOCK
+                : ProductStatus.AVAILABLE;
+    }
+
+    @PrePersist
+    public void prePersist() {
+        LocalDateTime now = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+        status = deriveStatus();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
+        status = deriveStatus();
     }
 }

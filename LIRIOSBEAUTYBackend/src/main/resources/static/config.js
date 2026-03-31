@@ -1,5 +1,10 @@
+const isLocalHost = ["localhost", "127.0.0.1"].includes(
+  window.location.hostname,
+);
+
 window.__APP_CONFIG__ = {
-  // Prod backend URL-ni bura yazin, meselen: "https://your-backend.onrender.com"
-  // Bos saxlayanda frontend /api ile eyni origin-e sorugu gonderir.
-  apiBaseUrl: "https://lirios-management-system.onrender.com",
+  // Lokal testde avtomatik olaraq lokal backend-e qoşulur.
+  apiBaseUrl: isLocalHost
+    ? "http://localhost:8081"
+    : "https://lirios-management-system.onrender.com",
 };

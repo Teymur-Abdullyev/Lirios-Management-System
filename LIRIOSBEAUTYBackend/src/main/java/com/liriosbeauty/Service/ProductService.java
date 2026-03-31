@@ -9,6 +9,7 @@ import com.liriosbeauty.Repository.StockMovementRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -37,6 +38,9 @@ public class ProductService {
     public Product save(Product product) {
         if (productRepository.existsByBarcode(product.getBarcode())) {
             throw new RuntimeException("Bu barcode artıq mövcuddur: " + product.getBarcode());
+        }
+        if (product.getCostPrice() == null) {
+            product.setCostPrice(BigDecimal.ZERO);
         }
         return productRepository.save(product);
     }
@@ -93,7 +97,7 @@ public class ProductService {
                 .orElseThrow(() -> new RuntimeException("Məhsul tapılmadı"));
         product.setName(updated.getName());
         product.setPrice(updated.getPrice());
-        product.setCostPrice(updated.getCostPrice());
+        product.setCostPrice(updated.getCostPrice() != null ? updated.getCostPrice() : BigDecimal.ZERO);
         product.setCategory(updated.getCategory());
         return productRepository.save(product);
     }
@@ -113,7 +117,7 @@ public class ProductService {
         dto.setBarcode(p.getBarcode());
         dto.setProductName(p.getName());
         dto.setSellingPrice(p.getPrice());
-        dto.setCostPrice(p.getCostPrice());
+        dto.setCostPrice(p.getCostPrice() != null ? p.getCostPrice() : BigDecimal.ZERO);
         dto.setStockQuantity(p.getStockQty());
         dto.setCategory(p.getCategory());
         return dto;

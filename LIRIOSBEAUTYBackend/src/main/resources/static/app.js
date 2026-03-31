@@ -74,8 +74,11 @@ let employees = [];
 let customers = [];
 let currentCustomer = null;
 let currentUser = null;
-let html5QrcodeScanner = null;
-let productScanner = null;
+let barcodeReader = null;
+let barcodeLib = null;
+let barcodeLibLoadingPromise = null;
+let posScannerControls = null;
+let productScannerControls = null;
 let existingProduct = null; // Barkod yoxlayanda tapılan məhsul
 
 // Currency rates
@@ -308,7 +311,8 @@ function initApp() {
 
   initNav();
   loadCurrency();
-  loadDashboard();
+  const initialPage = getInitialPage();
+  activatePage(initialPage, false);
   displayUserInfo();
 }
 
@@ -352,29 +356,60 @@ function initNav() {
       const page = item.dataset.page;
 
       if (!page) return;
-
-      document
-        .querySelectorAll(".nav-item")
-        .forEach((n) => n.classList.remove("active"));
-      item.classList.add("active");
-      document
-        .querySelectorAll(".page")
-        .forEach((p) => p.classList.remove("active"));
-      document.getElementById(page).classList.add("active");
-
-      const loaders = {
-        dashboard: loadDashboard,
-        pos: loadPOS,
-        products: loadProducts,
-        orders: loadOrders,
-        customers: loadCustomers,
-        employees: loadEmployees,
-        debts: loadDebts,
-      };
-
-      if (loaders[page]) loaders[page]();
+      activatePage(page, true);
     });
   });
+
+  window.addEventListener("hashchange", () => {
+    activatePage(getInitialPage(), false);
+  });
+}
+
+function getInitialPage() {
+  const page = (window.location.hash || "").replace("#", "").trim();
+  const allowedPages = [
+    "dashboard",
+    "pos",
+    "products",
+    "orders",
+    "customers",
+    "employees",
+    "debts",
+  ];
+  return allowedPages.includes(page) ? page : "dashboard";
+}
+
+function activatePage(page, updateHash = true) {
+  const targetPage = document.getElementById(page);
+  if (!targetPage) return;
+
+  document
+    .querySelectorAll(".nav-item")
+    .forEach((n) => n.classList.remove("active"));
+  document
+    .querySelector(`.nav-item[data-page="${page}"]`)
+    ?.classList.add("active");
+
+  document
+    .querySelectorAll(".page")
+    .forEach((p) => p.classList.remove("active"));
+  targetPage.classList.add("active");
+
+  const loaders = {
+    dashboard: loadDashboard,
+    pos: loadPOS,
+    products: loadProducts,
+    orders: loadOrders,
+    customers: loadCustomers,
+    employees: loadEmployees,
+    debts: loadDebts,
+  };
+
+  if (loaders[page]) loaders[page]();
+
+  if (updateHash) {
+    window.location.hash = page;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -420,7 +455,13 @@ async function loadDashboard() {
           );
     const expenses =
       summary?.totalExpenses != null ? parseFloat(summary.totalExpenses) : 0;
-    const netProfit = turnover - expenses;
+    const purchaseCosts =
+      summary?.totalCost != null ? parseFloat(summary.totalCost) : 0;
+    const netProfitRaw =
+      summary?.netProfit != null
+        ? parseFloat(summary.netProfit)
+        : turnover - purchaseCosts - expenses;
+    const netProfit = Math.max(0, netProfitRaw);
     const debtValue =
       summary?.totalDebt != null
         ? parseFloat(summary.totalDebt)
@@ -926,26 +967,20 @@ function resetProductModal() {
 function startProductScanner() {
   document.getElementById("scanner-container").style.display = "block";
 
-  productScanner = new Html5QrcodeScanner("product-scanner", {
-    fps: 10,
-    qrbox: { width: 250, height: 250 },
+  startBarcodeScanner("product-scanner", "product", (decodedText) => {
+    showToast("Barkod oxundu: " + decodedText);
+    stopProductScanner();
+    checkBarcodeApi(decodedText);
   });
-
-  productScanner.render(
-    (decodedText) => {
-      showToast("Barkod oxundu: " + decodedText);
-      stopProductScanner();
-      checkBarcodeApi(decodedText);
-    },
-    (err) => {},
-  );
 }
 
 function stopProductScanner() {
-  if (productScanner) {
-    productScanner.clear().catch((e) => {});
-    productScanner = null;
+  if (productScannerControls) {
+    productScannerControls.stop();
+    productScannerControls = null;
   }
+  const container = document.getElementById("product-scanner");
+  if (container) container.innerHTML = "";
 }
 
 function showManualBarcode() {
@@ -1495,37 +1530,262 @@ async function exportProducts() {
 function openScanner() {
   document.getElementById("scanner-modal").classList.add("active");
 
-  html5QrcodeScanner = new Html5QrcodeScanner("pos-scanner-container", {
-    fps: 10,
-    qrbox: { width: 250, height: 250 },
+  startBarcodeScanner("pos-scanner-container", "pos", (decodedText) => {
+    document.getElementById("scanner-result").textContent = "✓ " + decodedText;
+
+    // Məhsulu tap və səbətə at
+    const product = products.find((p) => p.barcode === decodedText);
+    if (product) {
+      addToCart(product.id);
+    } else {
+      showToast("Məhsul tapılmadı!", "error");
+    }
+
+    setTimeout(() => closeScanner(), 900);
   });
-
-  html5QrcodeScanner.render(
-    (decodedText) => {
-      document.getElementById("scanner-result").textContent =
-        "✓ " + decodedText;
-
-      // Məhsulu tap və səbətə at
-      const product = products.find((p) => p.barcode === decodedText);
-      if (product) {
-        addToCart(product.id);
-      } else {
-        showToast("Məhsul tapılmadı!", "error");
-      }
-
-      setTimeout(() => closeScanner(), 1000);
-    },
-    (err) => {},
-  );
 }
 
 function closeScanner() {
-  if (html5QrcodeScanner) {
-    html5QrcodeScanner.clear().catch((e) => {});
-    html5QrcodeScanner = null;
+  if (posScannerControls) {
+    posScannerControls.stop();
+    posScannerControls = null;
   }
   document.getElementById("scanner-modal").classList.remove("active");
   document.getElementById("scanner-result").textContent = "";
+  const container = document.getElementById("pos-scanner-container");
+  if (container) container.innerHTML = "";
+}
+
+function getBarcodeReader() {
+  if (!barcodeLib) {
+    throw new Error("Barkod kitabxanası hazır deyil");
+  }
+
+  if (!barcodeReader) {
+    const hints = new Map();
+    hints.set(barcodeLib.DecodeHintType.POSSIBLE_FORMATS, [
+      barcodeLib.BarcodeFormat.EAN_13,
+      barcodeLib.BarcodeFormat.UPC_A,
+      barcodeLib.BarcodeFormat.CODE_128,
+    ]);
+    barcodeReader = new barcodeLib.BrowserMultiFormatReader(hints, 250);
+  }
+
+  return barcodeReader;
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[data-src="${src}"]`);
+    if (existing) {
+      if (existing.dataset.loaded === "true") resolve();
+      else existing.addEventListener("load", () => resolve(), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.dataset.src = src;
+    script.onload = () => {
+      script.dataset.loaded = "true";
+      resolve();
+    };
+    script.onerror = () => reject(new Error(`Script yüklənmədi: ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function ensureBarcodeLibrary() {
+  if (window.ZXingBrowser?.BrowserMultiFormatReader) {
+    barcodeLib = window.ZXingBrowser;
+    return;
+  }
+
+  if (window.ZXing?.BrowserMultiFormatReader) {
+    barcodeLib = window.ZXing;
+    return;
+  }
+
+  if (!barcodeLibLoadingPromise) {
+    barcodeLibLoadingPromise = (async () => {
+      const sources = [
+        "https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js",
+        "https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js",
+      ];
+
+      for (const src of sources) {
+        try {
+          await loadScript(src);
+          if (window.ZXingBrowser?.BrowserMultiFormatReader) {
+            barcodeLib = window.ZXingBrowser;
+            return;
+          }
+          if (window.ZXing?.BrowserMultiFormatReader) {
+            barcodeLib = window.ZXing;
+            return;
+          }
+        } catch (_) {}
+      }
+
+      throw new Error("Barkod kitabxanası yüklənmədi");
+    })();
+  }
+
+  await barcodeLibLoadingPromise;
+}
+
+async function startNativeBarcodeScanner(containerId, mode, onDetected) {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("Brauzerdə kamera API dəstəklənmir");
+  }
+
+  if (!window.BarcodeDetector) {
+    throw new Error("Brauzerdə barkod detektoru dəstəklənmir");
+  }
+
+  const supportedFormats =
+    typeof window.BarcodeDetector.getSupportedFormats === "function"
+      ? await window.BarcodeDetector.getSupportedFormats()
+      : [];
+
+  const preferredFormats = ["ean_13", "upc_a", "code_128"];
+  const formats = supportedFormats.length
+    ? preferredFormats.filter((f) => supportedFormats.includes(f))
+    : preferredFormats;
+
+  const detector = formats.length
+    ? new window.BarcodeDetector({ formats })
+    : new window.BarcodeDetector();
+
+  const videoEl = ensureScannerVideo(containerId);
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode: { ideal: "environment" },
+    },
+    audio: false,
+  });
+
+  videoEl.srcObject = stream;
+  await videoEl.play();
+
+  let stopped = false;
+  let frameRequestId = null;
+
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    if (frameRequestId != null) {
+      cancelAnimationFrame(frameRequestId);
+      frameRequestId = null;
+    }
+    stream.getTracks().forEach((track) => track.stop());
+    if (videoEl.srcObject) {
+      videoEl.srcObject = null;
+    }
+  };
+
+  const scan = async () => {
+    if (stopped) return;
+    try {
+      const codes = await detector.detect(videoEl);
+      if (codes.length) {
+        const value = codes[0].rawValue;
+        if (value) {
+          stop();
+          if (mode === "pos") {
+            posScannerControls = null;
+          } else {
+            productScannerControls = null;
+          }
+          onDetected(value);
+          return;
+        }
+      }
+    } catch (_) {}
+
+    frameRequestId = requestAnimationFrame(scan);
+  };
+
+  frameRequestId = requestAnimationFrame(scan);
+  return { stop };
+}
+
+function ensureScannerVideo(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) {
+    throw new Error("Skan konteyneri tapılmadı");
+  }
+
+  container.innerHTML = "";
+
+  const video = document.createElement("video");
+  video.setAttribute("autoplay", "true");
+  video.setAttribute("playsinline", "true");
+  video.setAttribute("muted", "true");
+  video.style.width = "100%";
+  video.style.borderRadius = "12px";
+
+  container.appendChild(video);
+  return video;
+}
+
+async function startBarcodeScanner(containerId, mode, onDetected) {
+  try {
+    await ensureBarcodeLibrary();
+    const reader = getBarcodeReader();
+    const videoEl = ensureScannerVideo(containerId);
+
+    if (mode === "pos" && posScannerControls) {
+      posScannerControls.stop();
+    }
+    if (mode === "product" && productScannerControls) {
+      productScannerControls.stop();
+    }
+
+    const controls = await reader.decodeFromVideoDevice(
+      undefined,
+      videoEl,
+      (result) => {
+        if (!result) return;
+
+        controls.stop();
+        if (mode === "pos") {
+          posScannerControls = null;
+        } else {
+          productScannerControls = null;
+        }
+
+        onDetected(result.getText());
+      },
+    );
+
+    if (mode === "pos") {
+      posScannerControls = controls;
+    } else {
+      productScannerControls = controls;
+    }
+  } catch (e) {
+    try {
+      const fallbackControls = await startNativeBarcodeScanner(
+        containerId,
+        mode,
+        onDetected,
+      );
+      if (mode === "pos") {
+        posScannerControls = fallbackControls;
+      } else {
+        productScannerControls = fallbackControls;
+      }
+      showToast("Kamera fallback rejimində açıldı", "warning");
+    } catch (fallbackError) {
+      showToast(
+        "Kamera açılmadı: " +
+          (fallbackError.message || e.message || "naməlum xəta"),
+        "error",
+      );
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════

@@ -7,7 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/products")
@@ -29,8 +31,25 @@ public class ProductController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping
-    public ResponseEntity<ProductDTO> create(@RequestBody Product product) {
+        @PostMapping
+        public ResponseEntity<ProductDTO> create(@RequestBody Map<String, Object> body) {
+        Product product = new Product();
+        product.setBarcode(text(body.get("barcode")));
+        product.setName(firstNonBlank(
+            text(body.get("name")),
+            text(body.get("productName"))
+        ));
+        product.setPrice(firstPositiveMoney(
+            money(body.get("price")),
+            money(body.get("sellingPrice"))
+        ));
+        product.setCostPrice(firstNonNegativeMoney(
+            money(body.get("costPrice")),
+            money(body.get("cost_price"))
+        ));
+        product.setCategory(text(body.get("category")));
+        product.setStockQty(intValue(body.get("stockQty"), intValue(body.get("stockQuantity"), 0)));
+
         return ResponseEntity.ok(productService.saveDto(product));
     }
 
@@ -51,7 +70,24 @@ public class ProductController {
     @PutMapping("/{id}")
     public ResponseEntity<ProductDTO> update(
             @PathVariable Long id,
-            @RequestBody Product product) {
+            @RequestBody Map<String, Object> body) {
+        Product product = new Product();
+        product.setBarcode(text(body.get("barcode")));
+        product.setName(firstNonBlank(
+            text(body.get("name")),
+            text(body.get("productName"))
+        ));
+        product.setPrice(firstPositiveMoney(
+            money(body.get("price")),
+            money(body.get("sellingPrice"))
+        ));
+        product.setCostPrice(firstNonNegativeMoney(
+            money(body.get("costPrice")),
+            money(body.get("cost_price"))
+        ));
+        product.setCategory(text(body.get("category")));
+        product.setStockQty(intValue(body.get("stockQty"), intValue(body.get("stockQuantity"), 0)));
+
         return ResponseEntity.ok(productService.updateDto(id, product));
     }
 
@@ -59,5 +95,50 @@ public class ProductController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         productService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private String text(Object value) {
+        return value == null ? null : String.valueOf(value).trim();
+    }
+
+    private Integer intValue(Object value, Integer defaultValue) {
+        if (value == null) return defaultValue;
+        try {
+            return Integer.parseInt(String.valueOf(value).trim());
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
+    private BigDecimal money(Object value) {
+        if (value == null) return null;
+        try {
+            String raw = String.valueOf(value).trim().replace(',', '.');
+            if (raw.isBlank()) return null;
+            return new BigDecimal(raw);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String v : values) {
+            if (v != null && !v.isBlank()) return v;
+        }
+        return null;
+    }
+
+    private BigDecimal firstPositiveMoney(BigDecimal... values) {
+        for (BigDecimal v : values) {
+            if (v != null && v.compareTo(BigDecimal.ZERO) > 0) return v;
+        }
+        return null;
+    }
+
+    private BigDecimal firstNonNegativeMoney(BigDecimal... values) {
+        for (BigDecimal v : values) {
+            if (v != null && v.compareTo(BigDecimal.ZERO) >= 0) return v;
+        }
+        return BigDecimal.ZERO;
     }
 }

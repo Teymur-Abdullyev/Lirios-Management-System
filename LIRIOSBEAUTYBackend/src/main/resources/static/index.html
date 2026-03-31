@@ -9,7 +9,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="style.css" />
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js"></script>
   </head>
   <body>
     <!-- Sidebar -->
@@ -36,22 +36,6 @@
           </svg>
           <span>Ana Səhifə</span>
         </a>
-        <a href="#" class="nav-item" data-page="pos">
-          <svg
-            class="icon"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-            />
-          </svg>
-          <span>Satış</span>
-        </a>
         <a href="#" class="nav-item" data-page="products">
           <svg
             class="icon"
@@ -67,6 +51,22 @@
             />
           </svg>
           <span>Məhsul</span>
+        </a>
+        <a href="#" class="nav-item" data-page="pos">
+          <svg
+            class="icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+            />
+          </svg>
+          <span>Satış</span>
         </a>
         <a href="#" class="nav-item" data-page="orders">
           <svg
@@ -789,7 +789,7 @@
     <!-- Toast -->
     <div id="toast" class="toast"></div>
 
-    <script src="config.js"></script>
-    <script src="app.js"></script>
+    <script src="config.js?v=20260331-2"></script>
+    <script src="app.js?v=20260331-2"></script>
   </body>
 </html>

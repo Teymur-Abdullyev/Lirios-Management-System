@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 
@@ -74,13 +75,11 @@ public class ExcelController {
         List<OrderItem> items = orderItemRepository.findByYearAndMonth(year, month);
 
         BigDecimal revenue = items.stream()
-                .map(i -> i.getUnitPrice()
-                        .multiply(BigDecimal.valueOf(i.getQuantity())))
+                .map(this::lineRevenue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal costOfGoods = items.stream()
-                .map(i -> i.getProduct().getCostPrice()
-                        .multiply(BigDecimal.valueOf(i.getQuantity())))
+                .map(this::lineCost)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal grossProfit  = revenue.subtract(costOfGoods);
@@ -98,17 +97,17 @@ public class ExcelController {
 
     @GetMapping("/summary")
     public ResponseEntity<Map<String, Object>> getSummary() {
+        // CANCELLED sifarişlər çıxılaraq hesabla
+        List<OrderItem> activeItems = orderItemRepository.findByOrderArchivedFalse();
 
-        // Ümumi dövriyyə
-        BigDecimal totalRevenue = orderItemRepository.findAll().stream()
-                .map(i -> i.getUnitPrice()
-                        .multiply(BigDecimal.valueOf(i.getQuantity())))
+        // Ümumi satış gəliri
+        BigDecimal totalRevenue = activeItems.stream()
+                .map(this::lineRevenue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Ümumi mal xərci
-        BigDecimal totalCost = orderItemRepository.findAll().stream()
-                .map(i -> i.getProduct().getCostPrice()
-                        .multiply(BigDecimal.valueOf(i.getQuantity())))
+        // Ümumi mal xərci (alış qiyməti * satılan miqdar)
+        BigDecimal totalCost = activeItems.stream()
+                .map(this::lineCost)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Ümumi əməliyyat xərcləri
@@ -120,7 +119,7 @@ public class ExcelController {
         BigDecimal netProfit = totalRevenue.subtract(totalCost).subtract(totalExpenses);
 
         // Ümumi borc
-        BigDecimal totalDebt = orderRepository.getTotalDebt();
+        BigDecimal totalDebt = orderRepository.getTotalDebtExcludingCancelled();
 
         return ResponseEntity.ok(Map.of(
                 "totalRevenue",  totalRevenue,
@@ -130,4 +129,23 @@ public class ExcelController {
                 "totalDebt",     totalDebt != null ? totalDebt : BigDecimal.ZERO
         ));
     }
+
+        private BigDecimal lineRevenue(OrderItem item) {
+                BigDecimal unitPrice = safeMoney(item.getUnitPrice());
+                BigDecimal qty = BigDecimal.valueOf(item.getQuantity() == null ? 0 : item.getQuantity());
+                return unitPrice.multiply(qty).setScale(2, RoundingMode.HALF_UP);
+        }
+
+        private BigDecimal lineCost(OrderItem item) {
+                BigDecimal costPrice = BigDecimal.ZERO;
+                if (item.getProduct() != null) {
+                        costPrice = safeMoney(item.getProduct().getCostPrice());
+                }
+                BigDecimal qty = BigDecimal.valueOf(item.getQuantity() == null ? 0 : item.getQuantity());
+                return costPrice.multiply(qty).setScale(2, RoundingMode.HALF_UP);
+        }
+
+        private BigDecimal safeMoney(BigDecimal value) {
+                return value == null ? BigDecimal.ZERO : value;
+        }
 }
