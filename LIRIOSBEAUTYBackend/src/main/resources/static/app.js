@@ -453,15 +453,14 @@ async function loadDashboard() {
       return sum + qty * price;
     }, 0);
 
-    const turnover =
-      inventoryTurnover > 0
-        ? inventoryTurnover
-        : summary?.totalRevenue != null
-          ? parseFloat(summary.totalRevenue)
-          : activeOrders.reduce(
-              (sum, o) => sum + parseFloat(o.totalAmount || 0),
-              0,
-            );
+    const realizedRevenue =
+      summary?.totalRevenue != null
+        ? parseFloat(summary.totalRevenue)
+        : activeOrders.reduce((sum, o) => sum + parseFloat(o.totalAmount || 0), 0);
+
+    // Ümumi dövriyyə: cari stok dəyəri + satılmış malların dəyəri
+    // Bu yanaşma satış zamanı stok azalanda dövriyyənin düşməsinin qarşısını alır.
+    const turnover = inventoryTurnover + realizedRevenue;
     const expenses =
       summary?.totalExpenses != null ? parseFloat(summary.totalExpenses) : 0;
     const purchaseCosts =
