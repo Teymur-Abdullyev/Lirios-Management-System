@@ -44,6 +44,8 @@ public class SecurityConfig {
                         "/", "/index.html", "/expenses.html", "/app.js", "/expenses.js", "/config.js", "/style.css",
                                 "/favicon.ico", "/error", "/api/auth/login", "/api/auth/refresh"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/export/**")
+                            .hasAnyRole("ADMIN", "MANAGER", "SELLER")
                         .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/customers/**")
                             .hasAnyRole("ADMIN", "MANAGER", "SELLER")
                         .requestMatchers(HttpMethod.POST, "/api/orders/**")

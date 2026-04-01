@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,6 +27,7 @@ public class ExcelExportService {
     private final BonusService bonusService;
 
     // ─── 1. Məhsul siyahısı ───────────────────────────────
+    @Transactional(readOnly = true)
     public byte[] exportProducts() throws IOException {
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("Məhsullar");
@@ -59,6 +61,7 @@ public class ExcelExportService {
     }
 
     // ─── 2. Aylıq hesabat ─────────────────────────────────
+    @Transactional(readOnly = true)
     public byte[] exportMonthlyReport(int year, int month) throws IOException {
         validateMonth(month);
 
@@ -105,6 +108,7 @@ public class ExcelExportService {
     }
 
     // ─── 3. Rüblük bonus hesabatı ─────────────────────────
+    @Transactional(readOnly = true)
     public byte[] exportBonusReport(int year, int quarter) throws IOException {
         validateQuarter(quarter);
 
