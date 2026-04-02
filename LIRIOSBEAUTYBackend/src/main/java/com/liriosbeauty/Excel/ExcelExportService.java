@@ -29,35 +29,39 @@ public class ExcelExportService {
     // ─── 1. Məhsul siyahısı ───────────────────────────────
     @Transactional(readOnly = true)
     public byte[] exportProducts() throws IOException {
-        Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Məhsullar");
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Məhsullar");
 
-        // Header
-        Row header = sheet.createRow(0);
-        String[] cols = {"ID", "Barcode", "Ad", "Satış qiyməti", "Alış qiyməti", "Stok", "Kateqoriya", "Status"};
-        for (int i = 0; i < cols.length; i++) {
-            Cell cell = header.createCell(i);
-            cell.setCellValue(cols[i]);
-            cell.setCellStyle(headerStyle(workbook));
+            // Header
+            Row header = sheet.createRow(0);
+            String[] cols = {"ID", "Barcode", "Ad", "Satış qiyməti", "Alış qiyməti", "Stok", "Kateqoriya", "Status"};
+            for (int i = 0; i < cols.length; i++) {
+                Cell cell = header.createCell(i);
+                cell.setCellValue(cols[i]);
+                cell.setCellStyle(headerStyle(workbook));
+            }
+
+            // Data
+            List<Product> products = productRepository.findByDeletedAtIsNull();
+            int rowNum = 1;
+            for (Product p : products) {
+                if (p == null) {
+                    continue;
+                }
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(p.getId() == null ? 0L : p.getId());
+                row.createCell(1).setCellValue(safeText(p.getBarcode()));
+                row.createCell(2).setCellValue(safeText(p.getName()));
+                row.createCell(3).setCellValue(safeMoney(p.getPrice()).doubleValue());
+                row.createCell(4).setCellValue(safeMoney(p.getCostPrice()).doubleValue());
+                row.createCell(5).setCellValue(safeInt(p.getStockQty()));
+                row.createCell(6).setCellValue(safeText(p.getCategory()));
+                row.createCell(7).setCellValue(safeStatus(p));
+            }
+
+            autoSize(sheet, cols.length);
+            return toBytes(workbook);
         }
-
-        // Data
-        List<Product> products = productRepository.findByDeletedAtIsNull();
-        int rowNum = 1;
-        for (Product p : products) {
-            Row row = sheet.createRow(rowNum++);
-            row.createCell(0).setCellValue(p.getId() == null ? 0L : p.getId());
-            row.createCell(1).setCellValue(safeText(p.getBarcode()));
-            row.createCell(2).setCellValue(safeText(p.getName()));
-            row.createCell(3).setCellValue(safeMoney(p.getPrice()).doubleValue());
-            row.createCell(4).setCellValue(safeMoney(p.getCostPrice()).doubleValue());
-            row.createCell(5).setCellValue(safeInt(p.getStockQty()));
-            row.createCell(6).setCellValue(safeText(p.getCategory()));
-            row.createCell(7).setCellValue(safeStatus(p));
-        }
-
-        autoSize(sheet, cols.length);
-        return toBytes(workbook);
     }
 
     // ─── 2. Aylıq hesabat ─────────────────────────────────
@@ -65,46 +69,47 @@ public class ExcelExportService {
     public byte[] exportMonthlyReport(int year, int month) throws IOException {
         validateMonth(month);
 
-        Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Aylıq hesabat");
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Aylıq hesabat");
 
-        // Gəlir hesabla
-        List<OrderItem> items = orderItemRepository.findByYearAndMonth(year, month);
+            // Gəlir hesabla
+            List<OrderItem> items = orderItemRepository.findByYearAndMonth(year, month);
 
-        BigDecimal revenue = items.stream()
-            .map(this::lineRevenue)
+            BigDecimal revenue = items.stream()
+                .map(this::lineRevenue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal costOfGoods = items.stream()
-            .map(this::lineCost)
+            BigDecimal costOfGoods = items.stream()
+                .map(this::lineCost)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal grossProfit  = revenue.subtract(costOfGoods);
-        BigDecimal totalExpense = expenseService.getMonthlyTotal(year, month);
-        BigDecimal netProfit    = grossProfit.subtract(totalExpense);
+            BigDecimal grossProfit  = revenue.subtract(costOfGoods);
+            BigDecimal totalExpense = expenseService.getMonthlyTotal(year, month);
+            BigDecimal netProfit    = grossProfit.subtract(totalExpense);
 
-        // Cədvəl
-        String[][] data = {
+            // Cədvəl
+            String[][] data = {
                 {"Göstərici", "Məbləğ (AZN)"},
                 {"Satış gəliri",    revenue.toString()},
                 {"Mal xərci",       costOfGoods.toString()},
                 {"Brut mənfəət",    grossProfit.toString()},
                 {"Əməliyyat xərcləri", totalExpense.toString()},
                 {"Xalis mənfəət",   netProfit.toString()}
-        };
+            };
 
-        for (int i = 0; i < data.length; i++) {
-            Row row = sheet.createRow(i);
-            for (int j = 0; j < data[i].length; j++) {
-                Cell cell = row.createCell(j);
-                cell.setCellValue(data[i][j]);
-                if (i == 0) cell.setCellStyle(headerStyle(workbook));
-                if (i == data.length - 1) cell.setCellStyle(boldStyle(workbook));
+            for (int i = 0; i < data.length; i++) {
+                Row row = sheet.createRow(i);
+                for (int j = 0; j < data[i].length; j++) {
+                    Cell cell = row.createCell(j);
+                    cell.setCellValue(data[i][j]);
+                    if (i == 0) cell.setCellStyle(headerStyle(workbook));
+                    if (i == data.length - 1) cell.setCellStyle(boldStyle(workbook));
+                }
             }
-        }
 
-        autoSize(sheet, 2);
-        return toBytes(workbook);
+            autoSize(sheet, 2);
+            return toBytes(workbook);
+        }
     }
 
     // ─── 3. Rüblük bonus hesabatı ─────────────────────────
@@ -112,29 +117,33 @@ public class ExcelExportService {
     public byte[] exportBonusReport(int year, int quarter) throws IOException {
         validateQuarter(quarter);
 
-        Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Bonus hesabatı");
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Bonus hesabatı");
 
-        Row header = sheet.createRow(0);
-        String[] cols = {"İşçi", "Satış (AZN)", "Bonus %", "Bonus (AZN)"};
-        for (int i = 0; i < cols.length; i++) {
-            Cell cell = header.createCell(i);
-            cell.setCellValue(cols[i]);
-            cell.setCellStyle(headerStyle(workbook));
+            Row header = sheet.createRow(0);
+            String[] cols = {"İşçi", "Satış (AZN)", "Bonus %", "Bonus (AZN)"};
+            for (int i = 0; i < cols.length; i++) {
+                Cell cell = header.createCell(i);
+                cell.setCellValue(cols[i]);
+                cell.setCellStyle(headerStyle(workbook));
+            }
+
+            List<EmployeeBonusDTO> bonuses = bonusService.calculateQuarterlyBonus(year, quarter);
+            int rowNum = 1;
+            for (EmployeeBonusDTO b : bonuses) {
+                if (b == null) {
+                    continue;
+                }
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(safeText(b.getEmployeeName()));
+                row.createCell(1).setCellValue(safeMoney(b.getTotalSales()).doubleValue());
+                row.createCell(2).setCellValue(safeMoney(b.getBonusPercent()).doubleValue());
+                row.createCell(3).setCellValue(safeMoney(b.getBonusAmount()).doubleValue());
+            }
+
+            autoSize(sheet, cols.length);
+            return toBytes(workbook);
         }
-
-        List<EmployeeBonusDTO> bonuses = bonusService.calculateQuarterlyBonus(year, quarter);
-        int rowNum = 1;
-        for (EmployeeBonusDTO b : bonuses) {
-            Row row = sheet.createRow(rowNum++);
-            row.createCell(0).setCellValue(b.getEmployeeName());
-            row.createCell(1).setCellValue(safeMoney(b.getTotalSales()).doubleValue());
-            row.createCell(2).setCellValue(safeMoney(b.getBonusPercent()).doubleValue());
-            row.createCell(3).setCellValue(safeMoney(b.getBonusAmount()).doubleValue());
-        }
-
-        autoSize(sheet, cols.length);
-        return toBytes(workbook);
     }
 
     // ─── Köməkçi metodlar ─────────────────────────────────
