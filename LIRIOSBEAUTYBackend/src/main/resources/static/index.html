@@ -12,6 +12,16 @@
     <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js"></script>
   </head>
   <body>
+    <button
+      class="mobile-menu-btn"
+      onclick="toggleSidebar()"
+      aria-label="Menyunu aç"
+      title="Menyu"
+    >
+      ☰
+    </button>
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="logo">
@@ -793,3 +803,4 @@
     <script src="app.js?v=20260331-2"></script>
   </body>
 </html>
+se

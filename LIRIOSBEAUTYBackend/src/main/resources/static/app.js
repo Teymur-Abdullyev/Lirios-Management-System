@@ -410,6 +410,25 @@ function activatePage(page, updateHash = true) {
   if (updateHash) {
     window.location.hash = page;
   }
+
+  if (window.matchMedia("(max-width: 768px)").matches) {
+    closeSidebar();
+  }
+}
+
+function toggleSidebar() {
+  const sidebar = document.querySelector(".sidebar");
+  const overlay = document.getElementById("sidebar-overlay");
+  if (!sidebar || !overlay) return;
+  sidebar.classList.toggle("active");
+  overlay.classList.toggle("active");
+}
+
+function closeSidebar() {
+  const sidebar = document.querySelector(".sidebar");
+  const overlay = document.getElementById("sidebar-overlay");
+  sidebar?.classList.remove("active");
+  overlay?.classList.remove("active");
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1466,7 +1485,8 @@ async function exportMonthly() {
     );
 
     if (!response.ok) {
-      showToast("Export xətası: " + response.status, "error");
+      const details = await readApiError(response, "Export xətası");
+      showToast(`Export xətası: ${response.status} - ${details}`, "error");
       return;
     }
 
@@ -1499,7 +1519,8 @@ async function exportBonus() {
     );
 
     if (!response.ok) {
-      showToast("Export xətası: " + response.status, "error");
+      const details = await readApiError(response, "Export xətası");
+      showToast(`Export xətası: ${response.status} - ${details}`, "error");
       return;
     }
 
@@ -1525,7 +1546,8 @@ async function exportProducts() {
     const response = await fetch(`${API}/api/export/products`);
 
     if (!response.ok) {
-      showToast("Export xətası: " + response.status, "error");
+      const details = await readApiError(response, "Export xətası");
+      showToast(`Export xətası: ${response.status} - ${details}`, "error");
       return;
     }
 

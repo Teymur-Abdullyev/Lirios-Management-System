@@ -46,14 +46,14 @@ public class ExcelExportService {
         int rowNum = 1;
         for (Product p : products) {
             Row row = sheet.createRow(rowNum++);
-            row.createCell(0).setCellValue(p.getId());
-            row.createCell(1).setCellValue(p.getBarcode() != null ? p.getBarcode() : "—");
-            row.createCell(2).setCellValue(p.getName());
+            row.createCell(0).setCellValue(p.getId() == null ? 0L : p.getId());
+            row.createCell(1).setCellValue(safeText(p.getBarcode()));
+            row.createCell(2).setCellValue(safeText(p.getName()));
             row.createCell(3).setCellValue(safeMoney(p.getPrice()).doubleValue());
             row.createCell(4).setCellValue(safeMoney(p.getCostPrice()).doubleValue());
-            row.createCell(5).setCellValue(p.getStockQty());
-            row.createCell(6).setCellValue(p.getCategory() != null ? p.getCategory() : "—");
-            row.createCell(7).setCellValue(p.getStatus().toString());
+            row.createCell(5).setCellValue(safeInt(p.getStockQty()));
+            row.createCell(6).setCellValue(safeText(p.getCategory()));
+            row.createCell(7).setCellValue(safeStatus(p));
         }
 
         autoSize(sheet, cols.length);
@@ -186,6 +186,22 @@ public class ExcelExportService {
 
     private BigDecimal safeMoney(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private int safeInt(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private String safeText(String value) {
+        return value == null || value.isBlank() ? "—" : value;
+    }
+
+    private String safeStatus(Product product) {
+        try {
+            return product.getStatus() == null ? "UNKNOWN" : product.getStatus().name();
+        } catch (Exception ignored) {
+            return "UNKNOWN";
+        }
     }
 
     private void validateQuarter(int quarter) {
