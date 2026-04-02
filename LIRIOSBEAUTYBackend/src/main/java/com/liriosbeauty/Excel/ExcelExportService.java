@@ -202,7 +202,19 @@ public class ExcelExportService {
     }
 
     private String safeText(String value) {
-        return value == null || value.isBlank() ? "—" : value;
+        if (value == null || value.isBlank()) {
+            return "—";
+        }
+
+        // Excel hüceyrələri idarəetmə simvollarını qəbul etmir (\t, \n, \r xaric).
+        String cleaned = value.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]", "");
+
+        // XLSX hüceyrə limiti 32767 simvoldur.
+        if (cleaned.length() > 32767) {
+            cleaned = cleaned.substring(0, 32767);
+        }
+
+        return cleaned;
     }
 
     private String safeStatus(Product product) {
