@@ -1563,6 +1563,17 @@ async function exportBonus() {
 async function exportProducts() {
   try {
     showToast("Excel hazırlanır...");
+
+    // Əgər məhsullar yüklənməmişsə, API-dən çək
+    let productsToExport = products;
+    if (!productsToExport || productsToExport.length === 0) {
+      productsToExport = await fetchJson(
+        `${API}/api/products`,
+        {},
+        "Məhsullar yüklənmədi",
+      );
+    }
+
     const response = await fetch(`${API}/api/export/products`);
 
     if (response.ok && isDownloadResponse(response)) {
@@ -1575,13 +1586,13 @@ async function exportProducts() {
       ? "Yüklənən fayl formatı düzgün deyil"
       : await readApiError(response, "Export xətası");
 
-    const fallbackRows = (products || []).map((p) => [
+    const fallbackRows = (productsToExport || []).map((p) => [
       p?.id ?? "",
       p?.barcode || "",
-      p?.name || "",
-      safeNum(p?.price),
+      p?.name || p?.productName || "",
+      safeNum(p?.price || p?.sellingPrice),
       safeNum(p?.costPrice),
-      p?.stockQty ?? 0,
+      p?.stockQty ?? p?.stockQuantity ?? 0,
       p?.category || "",
       p?.status || "",
     ]);
