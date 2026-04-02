@@ -1484,23 +1484,33 @@ async function exportMonthly() {
       `${API}/api/export/monthly?year=${year}&month=${month}`,
     );
 
-    if (!response.ok) {
-      const details = await readApiError(response, "Export xətası");
-      showToast(`Export xətası: ${response.status} - ${details}`, "error");
+    if (response.ok && isDownloadResponse(response)) {
+      await saveResponseAsFile(response, `hesabat-${year}-${month}.xlsx`);
+      showToast("Excel yükləndi! ✓");
       return;
     }
 
-    const blob = await response.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = `hesabat-${year}-${month}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(downloadUrl);
+    const details = response.ok
+      ? "Yüklənən fayl formatı düzgün deyil"
+      : await readApiError(response, "Export xətası");
 
-    showToast("Excel yükləndi! ✓");
+    const fallbackData = await fetchJson(
+      `${API}/api/export/monthly-data?year=${year}&month=${month}`,
+      {},
+      "Aylıq fallback məlumatı alınmadı",
+    );
+    downloadCsv(
+      ["Göstərici", "Məbləğ (AZN)"],
+      [
+        ["Satış gəliri", safeNum(fallbackData?.revenue)],
+        ["Mal xərci", safeNum(fallbackData?.costOfGoods)],
+        ["Brut mənfəət", safeNum(fallbackData?.grossProfit)],
+        ["Əməliyyat xərcləri", safeNum(fallbackData?.totalExpense)],
+        ["Xalis mənfəət", safeNum(fallbackData?.netProfit)],
+      ],
+      `hesabat-${year}-${month}.csv`,
+    );
+    showToast(`Backend xətası (${details}) - CSV fallback yükləndi`, "warning");
   } catch (e) {
     showToast("Xəta: " + e.message, "error");
   }
@@ -1518,23 +1528,33 @@ async function exportBonus() {
       `${API}/api/export/bonus?year=${year}&quarter=${quarter}`,
     );
 
-    if (!response.ok) {
-      const details = await readApiError(response, "Export xətası");
-      showToast(`Export xətası: ${response.status} - ${details}`, "error");
+    if (response.ok && isDownloadResponse(response)) {
+      await saveResponseAsFile(response, `bonus-${year}-Q${quarter}.xlsx`);
+      showToast("Excel yükləndi! ✓");
       return;
     }
 
-    const blob = await response.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = `bonus-${year}-Q${quarter}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(downloadUrl);
+    const details = response.ok
+      ? "Yüklənən fayl formatı düzgün deyil"
+      : await readApiError(response, "Export xətası");
 
-    showToast("Excel yükləndi! ✓");
+    const fallbackData = await fetchJson(
+      `${API}/api/bonus/quarterly?year=${year}&quarter=${quarter}`,
+      {},
+      "Bonus fallback məlumatı alınmadı",
+    );
+
+    downloadCsv(
+      ["İşçi", "Satış (AZN)", "Bonus %", "Bonus (AZN)"],
+      (fallbackData || []).map((b) => [
+        b?.employeeName || "—",
+        safeNum(b?.totalSales),
+        safeNum(b?.bonusPercent),
+        safeNum(b?.bonusAmount),
+      ]),
+      `bonus-${year}-Q${quarter}.csv`,
+    );
+    showToast(`Backend xətası (${details}) - CSV fallback yükləndi`, "warning");
   } catch (e) {
     showToast("Xəta: " + e.message, "error");
   }
@@ -1545,26 +1565,85 @@ async function exportProducts() {
     showToast("Excel hazırlanır...");
     const response = await fetch(`${API}/api/export/products`);
 
-    if (!response.ok) {
-      const details = await readApiError(response, "Export xətası");
-      showToast(`Export xətası: ${response.status} - ${details}`, "error");
+    if (response.ok && isDownloadResponse(response)) {
+      await saveResponseAsFile(response, "mehsullar.xlsx");
+      showToast("Excel yükləndi! ✓");
       return;
     }
 
-    const blob = await response.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = "mehsullar.xlsx";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(downloadUrl);
+    const details = response.ok
+      ? "Yüklənən fayl formatı düzgün deyil"
+      : await readApiError(response, "Export xətası");
 
-    showToast("Excel yükləndi! ✓");
+    const fallbackRows = (products || []).map((p) => [
+      p?.id ?? "",
+      p?.barcode || "",
+      p?.name || "",
+      safeNum(p?.price),
+      safeNum(p?.costPrice),
+      p?.stockQty ?? 0,
+      p?.category || "",
+      p?.status || "",
+    ]);
+
+    downloadCsv(
+      ["ID", "Barcode", "Ad", "Satış qiyməti", "Alış qiyməti", "Stok", "Kateqoriya", "Status"],
+      fallbackRows,
+      "mehsullar.csv",
+    );
+    showToast(`Backend xətası (${details}) - CSV fallback yükləndi`, "warning");
   } catch (e) {
     showToast("Xəta: " + e.message, "error");
   }
+}
+
+function isDownloadResponse(response) {
+  const ct = (response.headers.get("content-type") || "").toLowerCase();
+  return (
+    ct.includes("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") ||
+    ct.includes("application/octet-stream")
+  );
+}
+
+async function saveResponseAsFile(response, fileName) {
+  const blob = await response.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = downloadUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(downloadUrl);
+}
+
+function downloadCsv(header, rows, fileName) {
+  const allRows = [header, ...(rows || [])];
+  const csv = allRows
+    .map((r) => r.map((cell) => `"${sanitizeCsv(cell)}"`).join(","))
+    .join("\n");
+
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function sanitizeCsv(value) {
+  return String(value ?? "")
+    .replaceAll('"', '""')
+    .replaceAll("\n", " ")
+    .replaceAll("\r", " ")
+    .trim();
+}
+
+function safeNum(value) {
+  return Number(value || 0).toFixed(2);
 }
 
 // ═══════════════════════════════════════════════════════════
